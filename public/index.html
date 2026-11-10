@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Đăng ký tham dự</title>
+<link rel="stylesheet" href="/assets/app.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head><body>
+<header class="hero">
+  <div class="eyebrow">Đăng ký tham dự</div>
+  <h1 data-ev="name">Hội nghị Khoa học kỹ thuật Dược lần thứ 43</h1>
+  <div class="meta"><span data-ev="date"></span><span data-ev="time"></span><span data-ev="venue"></span></div>
+</header>
+<main class="wrap">
+  <section id="formCard" class="card">
+    <form id="f" novalidate>
+      <label for="name">Họ và tên</label>
+      <input id="name" type="text" autocomplete="name" maxlength="100" required>
+      <label for="phone">Số điện thoại</label>
+      <input id="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="09xx xxx xxx" required>
+      <label for="email">Email (nhận xác nhận và mã QR điểm danh)</label>
+      <input id="email" type="email" inputmode="email" autocomplete="email" maxlength="120" required>
+      <label for="unit">Đơn vị công tác</label>
+      <input id="unit" type="text" autocomplete="organization" maxlength="150" required>
+      <div class="hp" aria-hidden="true"><label>Website<input id="website" type="text" tabindex="-1" autocomplete="off"></label></div>
+      <div id="err" class="alert err hidden" role="alert"></div>
+      <button id="go" class="btn">Đăng ký tham dự</button>
+    </form>
+  </section>
+
+  <section id="done" class="card center hidden">
+    <h2 id="doneTitle">Đăng ký thành công</h2>
+    <p id="doneMsg" class="muted"></p>
+    <div class="qr"><div id="qr"></div></div>
+    <div class="token" id="tok"></div>
+    <p class="small muted">Chụp màn hình mã QR này để dự phòng. Ngày hội nghị đưa mã cho nhân viên quét để điểm danh.</p>
+    <a id="surveyLink" class="btn ghost" href="#">Mở trang khảo sát &amp; chứng nhận</a>
+    <p class="small muted">Chỉ làm được sau khi đã điểm danh tại hội nghị.</p>
+  </section>
+</main>
+<script src="/assets/app.js"></script>
+<script>
+  const { $, call, showError, hide } = App;
+  App.fillEvent('Đăng ký');
+  $('#f').addEventListener('submit', async ev => {
+    ev.preventDefault(); hide($('#err'));
+    const btn = $('#go'); btn.disabled = true; btn.textContent = 'Đang gửi…';
+    try {
+      const r = await call('register', {
+        name: $('#name').value, phone: $('#phone').value, email: $('#email').value,
+        unit: $('#unit').value, website: $('#website').value
+      });
+      $('#formCard').classList.add('hidden'); $('#done').classList.remove('hidden');
+      $('#doneTitle').textContent = r.duplicate ? 'Bạn đã đăng ký trước đó' : 'Đăng ký thành công';
+      $('#doneMsg').textContent = (r.duplicate ? 'Mình đã gửi lại email xác nhận tới ' : 'Email xác nhận kèm mã QR sẽ được gửi tới ')
+        + $('#email').value.trim() + '. Nếu chưa thấy, hãy kiểm tra mục Thư rác.';
+      if (r.token) {
+        new QRCode($('#qr'), { text: r.token, width: 200, height: 200 });
+        $('#tok').textContent = r.token;
+        $('#surveyLink').href = '/survey?t=' + encodeURIComponent(r.token);
+      } else { $('#surveyLink').classList.add('hidden'); }
+      scrollTo(0, 0);
+    } catch (e) { showError($('#err'), e.message); }
+    finally { btn.disabled = false; btn.textContent = 'Đăng ký tham dự'; }
+  });
+</script>
+</body></html>

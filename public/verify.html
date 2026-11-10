@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Xác thực chứng nhận</title>
+<link rel="stylesheet" href="/assets/app.css">
+</head><body>
+<header class="hero"><div class="eyebrow">Xác thực giấy chứng nhận</div><h1 data-ev="name"></h1></header>
+<main class="wrap">
+  <form id="f" class="card" novalidate>
+    <label for="code">Mã chứng nhận</label>
+    <input id="code" type="text" autocomplete="off" autocapitalize="characters" placeholder="CN43-XXXXXXXX">
+    <button class="btn">Kiểm tra</button>
+  </form>
+  <div id="out"></div>
+</main>
+<script src="/assets/app.js"></script>
+<script>
+  const { $, call, esc, qs } = App;
+  App.fillEvent('Xác thực');
+  async function check(code) {
+    const out = $('#out'); out.innerHTML = '';
+    try {
+      const r = await call('verify', { code });
+      out.innerHTML = r.valid
+        ? `<div class="result ok">Giấy chứng nhận hợp lệ<small>${esc(r.name)} · ${esc(r.unit)}</small><small>${esc(r.event)} · cấp ngày ${esc(r.issuedAt.substring(0, 10))}</small></div>`
+        : '<div class="result err">Không tìm thấy mã này<small>Vui lòng kiểm tra lại mã trên giấy chứng nhận.</small></div>';
+    } catch (e) { out.innerHTML = '<div class="alert err">' + esc(e.message) + '</div>'; }
+  }
+  $('#f').addEventListener('submit', ev => { ev.preventDefault(); check($('#code').value); });
+  const c = qs.get('code'); if (c) { $('#code').value = c; check(c); }
+</script>
+</body></html>

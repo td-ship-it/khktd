@@ -1,0 +1,16 @@
+{
+  "name": "hoi-nghi-duoc-43",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Đăng ký, điểm danh, khảo sát, chứng nhận – Hội nghị Khoa học kỹ thuật Dược lần thứ 43",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "gas:push": "cd apps-script && clasp push",
+    "test": "node test/run.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

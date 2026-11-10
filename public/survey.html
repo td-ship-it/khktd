@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Khảo sát</title>
+<link rel="stylesheet" href="/assets/app.css">
+</head><body>
+<header class="hero">
+  <div class="eyebrow">Khảo sát sau hội nghị</div>
+  <h1 data-ev="name">Hội nghị Khoa học kỹ thuật Dược lần thứ 43</h1>
+</header>
+<main class="wrap">
+  <div id="msg" class="card hidden"></div>
+  <form id="f" class="card hidden" novalidate>
+    <p class="muted" id="hello"></p>
+    <div id="qs"></div>
+    <div id="err" class="alert err hidden" role="alert"></div>
+    <button id="go" class="btn">Gửi khảo sát &amp; nhận giấy chứng nhận</button>
+  </form>
+</main>
+<script src="/assets/app.js"></script>
+<script>
+  const { $, call, showError, hide, esc, qs } = App;
+  const token = (qs.get('t') || '').trim();
+  const kiosk = qs.get('kiosk') === '1' ? '&kiosk=1' : '';
+  let questions = [];
+  const LABELS = ['Rất kém', 'Kém', 'Bình thường', 'Tốt', 'Rất tốt'];
+
+  function msg(html) { const m = $('#msg'); m.innerHTML = html; m.classList.remove('hidden'); $('#f').classList.add('hidden'); }
+
+  function build(q) {
+    let body = '';
+    if (q.type === 'rating') {
+      body = '<div class="pills">' + [1, 2, 3, 4, 5].map(n =>
+        `<label class="pill"><input type="radio" name="${q.id}" value="${n}"><span>${n}</span></label>`).join('') +
+        '</div><div class="scale"><span>1 = ' + LABELS[0] + '</span><span>5 = ' + LABELS[4] + '</span></div>';
+    } else if (q.type === 'choice') {
+      body = '<div class="opts">' + q.options.map(o => `<label><input type="radio" name="${q.id}" value="${esc(o)}">${esc(o)}</label>`).join('') + '</div>';
+    } else if (q.type === 'multi') {
+      body = '<div class="opts">' + q.options.map(o => `<label><input type="checkbox" name="${q.id}" value="${esc(o)}">${esc(o)}</label>`).join('') + '</div>';
+    } else {
+      body = `<textarea name="${q.id}" maxlength="1000"></textarea>`;
+    }
+    return `<div class="q"><div class="t">${esc(q.label)}${q.required ? ' <span class="req">*</span>' : ''}</div>${body}</div>`;
+  }
+
+  function collect() {
+    const a = {};
+    questions.forEach(q => {
+      if (q.type === 'multi') a[q.id] = [...document.querySelectorAll(`[name="${q.id}"]:checked`)].map(i => i.value);
+      else if (q.type === 'text') a[q.id] = document.querySelector(`[name="${q.id}"]`).value;
+      else { const c = document.querySelector(`[name="${q.id}"]:checked`); a[q.id] = c ? c.value : ''; }
+    });
+    return a;
+  }
+
+  (async () => {
+    if (!token) return msg('<h2>Liên kết không hợp lệ</h2><p class="muted">Vui lòng mở liên kết trong email xác nhận đăng ký.</p>');
+    try {
+      const [cfg, st] = await Promise.all([App.fillEvent('Khảo sát'), call('survey_state', { t: token })]);
+      if (st.submitted) { location.replace('/certificate?t=' + encodeURIComponent(token) + kiosk); return; }
+      if (!st.checkedIn) return msg('<h2>Bạn chưa điểm danh</h2><p class="muted">Vui lòng điểm danh tại hội nghị (đưa mã QR cá nhân cho nhân viên, hoặc quét QR chung tại hội trường) rồi mở lại trang này.</p>');
+      questions = (cfg && cfg.survey) || (await App.getConfig()).survey;
+      $('#hello').textContent = 'Xin chào ' + st.name + ', cảm ơn bạn đã tham dự. Vui lòng dành 1 phút để góp ý.';
+      $('#qs').innerHTML = questions.map(build).join('');
+      $('#f').classList.remove('hidden');
+    } catch (e) { msg('<h2>Không mở được khảo sát</h2><p class="muted">' + esc(e.message) + '</p>'); }
+  })();
+
+  $('#f').addEventListener('submit', async ev => {
+    ev.preventDefault(); hide($('#err'));
+    const btn = $('#go'); btn.disabled = true; btn.textContent = 'Đang gửi…';
+    try {
+      await call('survey_submit', { t: token, answers: collect() });
+      location.href = '/certificate?t=' + encodeURIComponent(token) + kiosk;
+    } catch (e) {
+      if (e.code === 'ALREADY') { location.href = '/certificate?t=' + encodeURIComponent(token) + kiosk; return; }
+      showError($('#err'), e.message); btn.disabled = false; btn.textContent = 'Gửi khảo sát & nhận giấy chứng nhận';
+    }
+  });
+</script>
+</body></html>

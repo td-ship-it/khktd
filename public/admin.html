@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quản trị</title>
+<link rel="stylesheet" href="/assets/app.css">
+</head><body>
+<div id="gate" class="wrap"></div>
+<main id="app" class="wrap wide hidden">
+  <header style="padding:14px 0"><div class="eyebrow">Quản trị</div><h1 data-ev="name"></h1></header>
+
+  <div class="grid">
+    <div class="stat"><b id="sReg">–</b><span>Đã đăng ký</span></div>
+    <div class="stat"><b id="sChk">–</b><span>Đã điểm danh</span></div>
+    <div class="stat"><b id="sSur">–</b><span>Đã làm khảo sát</span></div>
+    <div class="stat"><b id="sPend">–</b><span>Mail đang chờ gửi</span></div>
+  </div>
+
+  <section class="card">
+    <h2>Hạn mức email hôm nay</h2>
+    <div><b id="mSent">–</b> / <span id="mLim">–</span> đã gửi · đã gửi tổng <b id="mTotal">–</b> · lỗi <b id="mFail">–</b></div>
+    <div class="bar"><i id="mBar" style="width:0"></i></div>
+    <p class="small muted">Mail vượt hạn mức tự xếp hàng và gửi tiếp vào ngày hôm sau. Cập nhật lúc <span id="at">–</span>.</p>
+  </section>
+
+  <section class="card">
+    <h2>Công cụ ngày hội nghị</h2>
+    <div class="row">
+      <a class="btn ghost" href="/scan" target="_blank" rel="noopener">Quét QR cá nhân (bàn đón tiếp)</a>
+      <a class="btn ghost" href="/screen" target="_blank" rel="noopener">Màn hình QR chung</a>
+      <a class="btn ghost" href="/kiosk" target="_blank" rel="noopener">Kiosk nhập SĐT</a>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Xuất dữ liệu (CSV, mở được bằng Excel)</h2>
+    <div class="row">
+      <button class="btn ghost" data-x="reg">Danh sách đăng ký</button>
+      <button class="btn ghost" data-x="chk">Danh sách điểm danh</button>
+      <button class="btn ghost" data-x="sur">Kết quả khảo sát</button>
+      <button class="btn ghost" data-x="mail">Hàng đợi mail</button>
+    </div>
+    <div id="xe" class="alert err hidden"></div>
+  </section>
+</main>
+<script src="/assets/app.js"></script>
+<script>
+  const { $, call, showError, hide } = App;
+  App.fillEvent('Quản trị');
+
+  async function stats() {
+    try {
+      const s = await call('admin_stats', { pw: App.pw });
+      $('#sReg').textContent = s.registered; $('#sChk').textContent = s.checkedIn; $('#sSur').textContent = s.surveyed;
+      $('#sPend').textContent = s.mail.pending + s.mail.sending;
+      $('#mSent').textContent = s.mailSentToday; $('#mLim').textContent = s.mailDailyLimit;
+      $('#mTotal').textContent = s.mail.sent; $('#mFail').textContent = s.mail.failed;
+      $('#mBar').style.width = Math.min(100, Math.round(100 * s.mailSentToday / s.mailDailyLimit)) + '%';
+      $('#at').textContent = s.serverTime;
+    } catch {}
+  }
+
+  const cell = v => {
+    let s = String(v);
+    if (/^[=+\-@]/.test(s)) s = "'" + s;           // chặn công thức khi mở bằng Excel
+    return '"' + s.replace(/"/g, '""') + '"';
+  };
+
+  async function exportCsv(which, btn) {
+    hide($('#xe')); const old = btn.textContent; btn.disabled = true; btn.textContent = 'Đang tải…';
+    try {
+      const r = await call('admin_export', { pw: App.pw, sheet: which });
+      const csv = '﻿' + [r.headers, ...r.rows].map(row => row.map(cell).join(',')).join('\r\n');
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      const a = document.createElement('a'); a.href = url;
+      a.download = r.filename + '-' + new Date().toISOString().slice(0, 10) + '.csv';
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch (e) { showError($('#xe'), e.message); }
+    finally { btn.disabled = false; btn.textContent = old; }
+  }
+
+  App.staffGate(() => {
+    stats(); setInterval(stats, 15000);
+    document.querySelectorAll('[data-x]').forEach(b => b.addEventListener('click', () => exportCsv(b.dataset.x, b)));
+  });
+</script>
+</body></html>

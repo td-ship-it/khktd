@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Giấy chứng nhận</title>
+<link rel="stylesheet" href="/assets/app.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head><body>
+<header class="hero">
+  <div class="eyebrow">Giấy chứng nhận tham dự</div>
+  <h1 id="title">Cảm ơn bạn đã tham dự!</h1>
+</header>
+<main class="wrap">
+  <div id="msg" class="card hidden"></div>
+  <section id="box" class="hidden">
+    <div class="card">
+      <div class="cert-frame" id="frame"><iframe id="cert" title="Giấy chứng nhận" sandbox=""></iframe></div>
+      <div id="err" class="alert err hidden" role="alert"></div>
+      <button id="dl" class="btn">Tải giấy chứng nhận (PDF)</button>
+      <p class="small muted center" id="note">Bản PDF cũng sẽ được gửi vào email của bạn trong thời gian sớm nhất.</p>
+    </div>
+    <div id="kioskBox" class="card center hidden">
+      <p>Quét mã để mở giấy chứng nhận trên điện thoại của bạn</p>
+      <div class="qr"><div id="qr"></div></div>
+      <p class="muted small">Màn hình sẽ tự quay về sau <b id="cd">30</b> giây.</p>
+    </div>
+  </section>
+</main>
+<script src="/assets/app.js"></script>
+<script>
+  const { $, call, showError, hide, esc, qs } = App;
+  const token = (qs.get('t') || '').trim();
+  const kiosk = qs.get('kiosk') === '1';
+  App.fillEvent('Chứng nhận');
+
+  function msg(html) { const m = $('#msg'); m.innerHTML = html; m.classList.remove('hidden'); }
+
+  function fit() {
+    const f = $('#frame'), s = Math.min(1, f.clientWidth / 794);
+    $('#cert').style.transform = 'scale(' + s + ')';
+    f.style.height = Math.ceil(1123 * s) + 'px';
+  }
+  addEventListener('resize', fit);
+
+  (async () => {
+    if (!token) return msg('<h2>Liên kết không hợp lệ</h2>');
+    try {
+      const r = await call('certificate', { t: token });
+      $('#title').textContent = 'Chúc mừng, ' + r.name + '!';
+      $('#cert').srcdoc = r.html;
+      $('#box').classList.remove('hidden'); fit();
+    } catch (e) {
+      if (e.code === 'NO_SURVEY') return msg('<h2>Chưa có giấy chứng nhận</h2><p class="muted">Bạn cần hoàn thành khảo sát trước.</p><a class="btn" href="/survey?t=' + encodeURIComponent(token) + '">Làm khảo sát</a>');
+      return msg('<h2>Không mở được giấy chứng nhận</h2><p class="muted">' + esc(e.message) + '</p>');
+    }
+    if (kiosk) {
+      $('#dl').classList.add('hidden'); $('#note').textContent = 'Bản PDF đã được gửi vào email của bạn.';
+      $('#kioskBox').classList.remove('hidden');
+      new QRCode($('#qr'), { text: location.origin + '/certificate?t=' + encodeURIComponent(token), width: 180, height: 180 });
+      let n = 30; const t = setInterval(() => { $('#cd').textContent = --n; if (n <= 0) { clearInterval(t); location.href = '/kiosk'; } }, 1000);
+    }
+  })();
+
+  $('#dl').addEventListener('click', async () => {
+    hide($('#err')); const b = $('#dl'); b.disabled = true; b.textContent = 'Đang tạo PDF…';
+    try {
+      const r = await call('certificate_pdf', { t: token });
+      const bin = atob(r.pdf), bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+      const a = document.createElement('a'); a.href = url; a.download = r.filename; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    } catch (e) { showError($('#err'), e.message); }
+    finally { b.disabled = false; b.textContent = 'Tải giấy chứng nhận (PDF)'; }
+  });
+</script>
+</body></html>

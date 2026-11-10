@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quét QR điểm danh</title>
+<link rel="stylesheet" href="/assets/app.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+</head><body>
+<div id="gate" class="wrap"></div>
+<main id="app" class="wrap hidden">
+  <header style="padding:8px 0"><div class="eyebrow">Quét mã QR điểm danh</div>
+    <h1 data-ev="shortName"></h1></header>
+
+  <div id="res" class="result warn">Sẵn sàng quét<small>Đưa mã QR vào khung, hoặc dùng máy quét cầm tay</small></div>
+
+  <section class="card center">
+    <div id="reader"></div>
+    <div class="row" style="margin-top:12px">
+      <button id="camBtn" class="btn ghost" type="button">Bật camera</button>
+    </div>
+    <form id="mf">
+      <label for="manual">Máy quét cầm tay / nhập mã thủ công</label>
+      <input id="manual" type="text" autocomplete="off" autocapitalize="characters" placeholder="D43-XXXXXXXXXX" autofocus>
+    </form>
+  </section>
+
+  <section class="card">
+    <div style="display:flex;justify-content:space-between"><h2>Lượt quét gần đây</h2><span class="count" id="cnt">0</span></div>
+    <ul class="log" id="log"></ul>
+  </section>
+</main>
+<script src="/assets/app.js"></script>
+<script>
+  const { $, call, esc } = App;
+  App.fillEvent('Quét QR');
+  let count = 0, busy = false, last = '', lastAt = 0, scanner = null;
+
+  function show(kind, title, sub) {
+    const r = $('#res'); r.className = 'result ' + kind;
+    r.innerHTML = esc(title) + '<small>' + esc(sub || '') + '</small>';
+  }
+  function logLine(text, kind) {
+    const li = document.createElement('li');
+    li.innerHTML = '<span>' + esc(text) + '</span><span class="muted">' + new Date().toLocaleTimeString('vi-VN') + '</span>';
+    li.style.color = kind === 'err' ? 'var(--err)' : '';
+    $('#log').prepend(li);
+    while ($('#log').children.length > 25) $('#log').lastChild.remove();
+  }
+
+  async function submit(raw) {
+    const token = String(raw).trim().toUpperCase();
+    if (!token || busy) return;
+    if (token === last && Date.now() - lastAt < 4000) return; // chống quét lặp
+    last = token; lastAt = Date.now(); busy = true;
+    try {
+      const r = await call('checkin_token', { token, pw: App.pw });
+      if (r.already) { App.beep(true); show('warn', r.name, 'Đã điểm danh trước đó · ' + r.unit); logLine(r.name + ' (đã điểm danh)'); }
+      else { App.beep(true); count++; $('#cnt').textContent = count; show('ok', r.name, r.unit); logLine(r.name + ' · ' + r.unit); }
+    } catch (e) { App.beep(false); show('err', 'Không hợp lệ', e.message); logLine(token + ': ' + e.message, 'err'); }
+    finally { busy = false; $('#manual').value = ''; $('#manual').focus(); }
+  }
+
+  App.staffGate(() => {
+    $('#mf').addEventListener('submit', ev => { ev.preventDefault(); submit($('#manual').value); });
+    $('#camBtn').addEventListener('click', async () => {
+      if (scanner) { await scanner.stop().catch(() => {}); scanner = null; $('#camBtn').textContent = 'Bật camera'; return; }
+      try {
+        scanner = new Html5Qrcode('reader');
+        await scanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 240, height: 240 } }, txt => submit(txt), () => {});
+        $('#camBtn').textContent = 'Tắt camera';
+      } catch (e) { scanner = null; show('err', 'Không bật được camera', 'Hãy cấp quyền camera cho trình duyệt.'); }
+    });
+  });
+</script>
+</body></html>

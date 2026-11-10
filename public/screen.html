@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Màn hình QR điểm danh</title>
+<link rel="stylesheet" href="/assets/app.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head><body>
+<div id="gate" class="wrap"></div>
+<main id="app" class="screen hidden">
+  <div class="eyebrow">Điểm danh tại hội nghị</div>
+  <h1 data-ev="name"></h1>
+  <p class="muted" style="font-size:20px">Quét mã bằng điện thoại, nhập số điện thoại đã đăng ký</p>
+  <div class="qr"><div id="qr"></div></div>
+  <p class="muted count">Mã đổi sau <b id="left">--</b> giây</p>
+</main>
+<script src="/assets/app.js"></script>
+<script>
+  const { $ } = App;
+  App.fillEvent('Màn hình QR');
+  let current = '', left = 0;
+
+  function render(code) {
+    const box = $('#qr'); box.innerHTML = '';
+    const size = Math.min(520, Math.floor(Math.min(innerWidth, innerHeight) * 0.6));
+    new QRCode(box, { text: location.origin + '/checkin?c=' + code, width: size, height: size, correctLevel: QRCode.CorrectLevel.M });
+  }
+  async function refresh() {
+    try {
+      const r = await App.call('admin_hallcode', { pw: App.pw });
+      left = r.expiresIn;
+      if (r.code !== current) { current = r.code; render(r.code); }
+    } catch (e) { /* giữ mã đang hiển thị, thử lại lượt sau */ }
+  }
+  App.staffGate(() => {
+    refresh();
+    setInterval(() => { left = Math.max(0, left - 1); $('#left').textContent = left; }, 1000);
+    setInterval(refresh, 10000);
+  });
+</script>
+</body></html>

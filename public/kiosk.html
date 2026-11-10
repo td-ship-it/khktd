@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kiosk điểm danh</title>
+<link rel="stylesheet" href="/assets/app.css">
+</head><body class="kiosk">
+<div id="gate" class="wrap"></div>
+<main id="app" class="wrap hidden">
+  <header class="center" style="padding:10px 0">
+    <div class="eyebrow">Bàn hỗ trợ điểm danh</div>
+    <h1 data-ev="name"></h1>
+  </header>
+  <section id="formCard" class="card">
+    <form id="f" novalidate>
+      <label for="phone" class="center" style="font-size:18px">Nhập số điện thoại đã đăng ký</label>
+      <input id="phone" type="tel" inputmode="tel" maxlength="20" autocomplete="off" placeholder="09xx xxx xxx" required>
+      <div id="err" class="alert err hidden" role="alert"></div>
+      <button id="go" class="btn">Điểm danh</button>
+    </form>
+    <p class="small muted center">Không có trong danh sách? Mở <a href="/" target="_blank" rel="noopener">trang đăng ký</a> để đăng ký tại chỗ.</p>
+  </section>
+  <section id="done" class="card center hidden">
+    <div class="result ok"><span id="who"></span><small id="unit"></small></div>
+    <p class="muted" id="hint">Tiếp tục làm khảo sát để nhận giấy chứng nhận…</p>
+    <a id="next" class="btn" href="#">Làm khảo sát ngay</a>
+  </section>
+</main>
+<script src="/assets/app.js"></script>
+<script>
+  const { $, call, showError, hide } = App;
+  App.fillEvent('Kiosk');
+  App.staffGate(pw => {
+    $('#phone').focus();
+    $('#f').addEventListener('submit', async ev => {
+      ev.preventDefault(); hide($('#err'));
+      const btn = $('#go'); btn.disabled = true;
+      try {
+        const r = await call('checkin_phone', { phone: $('#phone').value, pw });
+        App.beep(true);
+        $('#formCard').classList.add('hidden'); $('#done').classList.remove('hidden');
+        $('#who').textContent = r.name; $('#unit').textContent = r.unit || '';
+        const next = r.surveyDone
+          ? '/certificate?t=' + encodeURIComponent(r.token) + '&kiosk=1'
+          : '/survey?t=' + encodeURIComponent(r.token) + '&kiosk=1';
+        $('#next').href = next;
+        if (r.surveyDone) { $('#next').textContent = 'Xem giấy chứng nhận'; $('#hint').textContent = 'Bạn đã hoàn thành khảo sát trước đó.'; }
+        setTimeout(() => { location.href = next; }, 2500);
+      } catch (e) { App.beep(false); showError($('#err'), e.message); $('#phone').select(); }
+      finally { btn.disabled = false; }
+    });
+  });
+</script>
+</body></html>
