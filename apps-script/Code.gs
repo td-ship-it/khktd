@@ -42,6 +42,7 @@ var ROUTES = {
   verify:          function (r) { return verify_(r); },
   admin_ping:      function (r) { requireAdmin_(r); return { ok: true }; },
   admin_stats:     function (r) { requireAdmin_(r); return adminStats_(); },
+  admin_list:      function (r) { requireAdmin_(r); return adminList_(); },
   admin_export:    function (r) { requireAdmin_(r); return adminExport_(r); },
   admin_hallcode:  function (r) { requireAdmin_(r); return currentHallCode_(); }
 };

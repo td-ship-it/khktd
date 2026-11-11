@@ -61,6 +61,8 @@
     if (saved) tryLogin(saved, true);
   }
 
+  function logout() { sessionStorage.removeItem('pw'); location.reload(); }
+
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   function beep(ok) {
@@ -72,5 +74,5 @@
     } catch {}
   }
 
-  window.App = { $, qs, call, getConfig, fillEvent, showError, hide, staffGate, esc, beep, pw: null };
+  window.App = { $, qs, call, getConfig, fillEvent, showError, hide, staffGate, logout, esc, beep, pw: null };
 })();

@@ -11,7 +11,7 @@ const CONFIG_TTL = 300;               // cache action "config" 5 phút tại edg
 const ACTIONS = new Set([
   'config', 'register', 'checkin_phone', 'checkin_token', 'survey_state', 'survey_submit',
   'certificate', 'certificate_pdf', 'verify',
-  'admin_ping', 'admin_stats', 'admin_export', 'admin_hallcode'
+  'admin_ping', 'admin_stats', 'admin_list', 'admin_export', 'admin_hallcode'
 ]);
 
 const json = (obj, status = 200) =>

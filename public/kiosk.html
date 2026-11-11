@@ -6,7 +6,8 @@
 </head><body class="kiosk">
 <div id="gate" class="wrap"></div>
 <main id="app" class="wrap hidden">
-  <header class="center" style="padding:10px 0">
+  <header class="center" style="padding:10px 0;position:relative">
+    <button class="btn ghost sm" id="out" type="button" style="position:absolute;right:0;top:10px">Đăng xuất</button>
     <div class="eyebrow">Bàn hỗ trợ điểm danh</div>
     <h1 data-ev="name"></h1>
   </header>
@@ -30,6 +31,7 @@
   const { $, call, showError, hide } = App;
   App.fillEvent('Kiosk');
   App.staffGate(pw => {
+    $('#out').addEventListener('click', App.logout);
     $('#phone').focus();
     $('#f').addEventListener('submit', async ev => {
       ev.preventDefault(); hide($('#err'));

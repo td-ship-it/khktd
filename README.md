@@ -9,7 +9,7 @@ Người dùng ──► Cloudflare Worker (trang web + proxy /api) ──► Go
 |---|---|---|
 | Google Apps Script | API, Google Sheet làm CSDL, hàng đợi mail, tạo PDF chứng nhận | `apps-script/` |
 | Cloudflare Worker | Phục vụ giao diện, proxy `/api` tới Apps Script (ẩn URL + khoá) | `src/worker.js`, `public/` |
-| GitHub Actions | Tự deploy Worker khi push lên `main` | `.github/workflows/deploy.yml` |
+| GitHub + Cloudflare Builds | Tự deploy Worker khi push lên `main` | cấu hình trên Cloudflare |
 
 ## Luồng sử dụng
 
@@ -45,15 +45,16 @@ Người dùng ──► Cloudflare Worker (trang web + proxy /api) ──► Go
 7. **Triển khai → Triển khai mới → Ứng dụng web**: *Thực thi bằng tài khoản của tôi*, *Ai có quyền truy cập: Bất kỳ ai*. Sao chép URL `…/exec` (đây là `GAS_URL`).
    > Mỗi lần sửa code Apps Script phải **Quản lý bản triển khai → Chỉnh sửa → Phiên bản mới**, URL `/exec` được giữ nguyên.
 
-### 2. GitHub + Cloudflare Workers
-1. Tạo repo GitHub, đẩy toàn bộ thư mục này lên nhánh `main`.
-2. Cloudflare: **My Profile → API Tokens → Create Token** dùng mẫu *Edit Cloudflare Workers*. Ghi lại `Account ID`.
-3. GitHub repo → **Settings → Secrets and variables → Actions**, thêm 4 secret:
-   `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `GAS_URL`, `API_KEY` (giá trị `API_KEY` lấy ở bước 5 phần Apps Script).
-4. Push lên `main` (hoặc chạy tay *Actions → Deploy → Run workflow*) → Worker được deploy cùng 2 secret.
-5. Lấy địa chỉ Worker, điền vào `SITE_URL` ở Apps Script; gắn tên miền riêng trong Cloudflare nếu muốn (khi đó cập nhật lại `SITE_URL`).
+### 2. GitHub + Cloudflare Workers (kết nối trực tiếp, không cần API token)
+1. Đẩy toàn bộ thư mục này lên nhánh `main` của repo GitHub. Tên Worker trong `wrangler.toml` (`name = "khktd"`) phải trùng tên Worker trên Cloudflare.
+2. Cloudflare → Worker → **Settings → Builds → Connect** repo, nhánh `main`, lệnh deploy mặc định `npx wrangler deploy`. Mỗi lần push, Cloudflare tự build và deploy.
+3. Cloudflare → Worker → **Settings → Variables and Secrets → Add**, kiểu **Secret**, thêm 2 giá trị:
+   - `GAS_URL`: URL Web App Apps Script (`…/exec`)
+   - `API_KEY`: giá trị lấy ở bước 5 phần Apps Script
+   (Thêm ở đây, không thêm ở mục *Build variables*.)
+4. Lấy địa chỉ Worker (`https://<tên>.<tài-khoản>.workers.dev`), điền vào `SITE_URL` ở Apps Script. Gắn tên miền riêng nếu muốn, khi đó cập nhật lại `SITE_URL`.
 
-Deploy tay (không qua GitHub): `npm i && npx wrangler secret put GAS_URL && npx wrangler secret put API_KEY && npx wrangler deploy`.
+Deploy tay (không qua GitHub): `npm i && npx wrangler login && npx wrangler deploy`, rồi thêm 2 secret ở bước 3.
 
 ## Vận hành ngày hội nghị
 

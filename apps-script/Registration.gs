@@ -16,7 +16,7 @@ function register_(req) {
 
   var result = withLock_(function () {
     var sh = sheet_(SHEETS.REG.name);
-    var row = findRow_(sh, 3, phone);
+    var row = findRow_(sh, 3, phone, phoneFromCell_);
 
     if (row) {
       var existing = regFromRow_(sh.getRange(row, 1, 1, 7).getValues()[0]);
@@ -31,8 +31,12 @@ function register_(req) {
       return { token: existing.token, name: existing.name, duplicate: true, mailRow: mailRow };
     }
 
+    if (findRow_(sh, 4, email)) {
+      throw new ApiError('EMAIL_EXISTS', 'Email này đã được dùng để đăng ký cho một số điện thoại khác. Mỗi người dùng một email riêng; nếu cần hỗ trợ vui lòng liên hệ Ban tổ chức.');
+    }
+
     var token = newToken_();
-    sh.appendRow([token, safeCell_(name), phone, safeCell_(email), safeCell_(unit), nowStr_(), 0]);
+    appendRowText_(sh, [token, safeCell_(name), phone, safeCell_(email), safeCell_(unit), nowStr_(), 0], [3]);
     var mr = enqueueMail_('register', token, email);
     return { token: token, name: name, duplicate: false, mailRow: mr };
   });

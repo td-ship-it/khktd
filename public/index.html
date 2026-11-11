@@ -13,13 +13,14 @@
 <main class="wrap">
   <section id="formCard" class="card">
     <form id="f" novalidate>
-      <label for="name">Họ và tên</label>
+      <p class="small muted" style="margin-top:0"><span class="req">*</span> Thông tin bắt buộc</p>
+      <label for="name">Họ và tên <span class="req">*</span></label>
       <input id="name" type="text" autocomplete="name" maxlength="100" required>
-      <label for="phone">Số điện thoại</label>
+      <label for="phone">Số điện thoại <span class="req">*</span></label>
       <input id="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="09xx xxx xxx" required>
-      <label for="email">Email (nhận xác nhận và mã QR điểm danh)</label>
+      <label for="email">Email (nhận xác nhận và mã QR điểm danh) <span class="req">*</span></label>
       <input id="email" type="email" inputmode="email" autocomplete="email" maxlength="120" required>
-      <label for="unit">Đơn vị công tác</label>
+      <label for="unit">Đơn vị công tác <span class="req">*</span></label>
       <input id="unit" type="text" autocomplete="organization" maxlength="150" required>
       <div class="hp" aria-hidden="true"><label>Website<input id="website" type="text" tabindex="-1" autocomplete="off"></label></div>
       <div id="err" class="alert err hidden" role="alert"></div>
@@ -41,8 +42,31 @@
 <script>
   const { $, call, showError, hide } = App;
   App.fillEvent('Đăng ký');
+  const RULES = [
+    ['name', v => v.trim().length >= 2, 'Vui lòng nhập họ và tên.'],
+    ['phone', v => /^0\d{9,10}$/.test(v.replace(/[\s.\-]/g, '').replace(/^\+84/, '0')), 'Số điện thoại không hợp lệ (10–11 chữ số, ví dụ 0912345678).'],
+    ['email', v => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim()), 'Email không hợp lệ.'],
+    ['unit', v => v.trim().length >= 2, 'Vui lòng nhập đơn vị công tác.']
+  ];
+  function validate() {
+    document.querySelectorAll('.fe').forEach(e => e.remove());
+    let first = null;
+    RULES.forEach(([id, ok, msg]) => {
+      const el = $('#' + id); el.classList.remove('bad');
+      if (!ok(el.value)) {
+        el.classList.add('bad');
+        const d = document.createElement('div'); d.className = 'fe'; d.textContent = msg; el.after(d);
+        first = first || el;
+      }
+    });
+    if (first) first.focus();
+    return !first;
+  }
+  RULES.forEach(([id]) => $('#' + id).addEventListener('input', () => { $('#' + id).classList.remove('bad'); const n = $('#' + id).nextElementSibling; if (n && n.classList.contains('fe')) n.remove(); }));
+
   $('#f').addEventListener('submit', async ev => {
     ev.preventDefault(); hide($('#err'));
+    if (!validate()) return;
     const btn = $('#go'); btn.disabled = true; btn.textContent = 'Đang gửi…';
     try {
       const r = await call('register', {

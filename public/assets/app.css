@@ -84,3 +84,15 @@ ol.steps li{margin:6px 0}
 .screen .qr{padding:20px}
 .screen h1{font-size:34px}
 .count{font-size:22px;font-variant-numeric:tabular-nums}
+
+.topbar{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.btn.sm{width:auto;margin:0;padding:8px 14px;font-size:14px}
+.tablewrap{overflow-x:auto;margin-top:10px}
+table.tbl{width:100%;border-collapse:collapse;font-size:14px;min-width:640px}
+.tbl th,.tbl td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.tag{display:inline-block;padding:2px 8px;border-radius:99px;font-size:12px;background:var(--line);color:var(--muted)}
+.tag.on{background:var(--okbg);color:var(--ok)}
+.req{color:var(--err)}
+input.bad{border-color:var(--err)}
+.fe{color:var(--err);font-size:13px;margin-top:4px}

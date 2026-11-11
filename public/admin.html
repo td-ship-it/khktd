@@ -6,7 +6,8 @@
 </head><body>
 <div id="gate" class="wrap"></div>
 <main id="app" class="wrap wide hidden">
-  <header style="padding:14px 0"><div class="eyebrow">Quản trị</div><h1 data-ev="name"></h1></header>
+  <header class="topbar" style="padding:14px 0"><div><div class="eyebrow">Quản trị</div><h1 data-ev="name"></h1></div>
+    <button class="btn ghost sm" id="out" type="button">Đăng xuất</button></header>
 
   <div class="grid">
     <div class="stat"><b id="sReg">–</b><span>Đã đăng ký</span></div>
@@ -29,6 +30,14 @@
       <a class="btn ghost" href="/screen" target="_blank" rel="noopener">Màn hình QR chung</a>
       <a class="btn ghost" href="/kiosk" target="_blank" rel="noopener">Kiosk nhập SĐT</a>
     </div>
+  </section>
+
+  <section class="card">
+    <h2>Danh sách đăng ký <span class="muted small" id="lcount"></span></h2>
+    <input id="q" type="text" placeholder="Tìm theo tên, SĐT, email, đơn vị…" autocomplete="off">
+    <div class="tablewrap"><table class="tbl"><thead><tr><th>Họ tên</th><th>SĐT</th><th>Email</th><th>Đơn vị</th><th>Đăng ký lúc</th><th>Điểm danh</th><th>Khảo sát</th></tr></thead>
+    <tbody id="tb"><tr><td colspan="7" class="muted">Đang tải…</td></tr></tbody></table></div>
+    <p class="small muted" id="lmore"></p>
   </section>
 
   <section class="card">
@@ -59,8 +68,26 @@
     } catch {}
   }
 
+  let all = [];
+  const MAXROWS = 200;
+  function renderList() {
+    const q = $('#q').value.trim().toLowerCase();
+    const rows = q ? all.filter(r => r.slice(0, 4).join(' ').toLowerCase().includes(q)) : all;
+    const shown = rows.slice(0, MAXROWS);
+    $('#tb').innerHTML = shown.length ? shown.map(r =>
+      '<tr><td>' + App.esc(r[0]) + '</td><td>' + App.esc(r[1]) + '</td><td>' + App.esc(r[2]) + '</td><td>' + App.esc(r[3]) + '</td><td>' + App.esc(r[4]) +
+      '</td><td><span class="tag' + (r[5] ? ' on' : '') + '">' + (r[5] ? 'Đã' : 'Chưa') + '</span></td><td><span class="tag' + (r[6] ? ' on' : '') + '">' + (r[6] ? 'Đã' : 'Chưa') + '</span></td></tr>'
+    ).join('') : '<tr><td colspan="7" class="muted">Không có dữ liệu</td></tr>';
+    $('#lcount').textContent = '(' + all.length + ')';
+    $('#lmore').textContent = rows.length > MAXROWS ? 'Đang hiện ' + MAXROWS + ' / ' + rows.length + ' dòng đầu. Dùng ô tìm kiếm hoặc xuất CSV để xem đủ.' : '';
+  }
+  async function loadList() {
+    try { all = (await call('admin_list', { pw: App.pw })).rows; renderList(); } catch {}
+  }
+
   const cell = v => {
     let s = String(v);
+    if (/^0\d{6,}$/.test(s)) return '"=""' + s + '"""';   // Excel giữ số 0 đầu của SĐT
     if (/^[=+\-@]/.test(s)) s = "'" + s;           // chặn công thức khi mở bằng Excel
     return '"' + s.replace(/"/g, '""') + '"';
   };
@@ -79,7 +106,9 @@
   }
 
   App.staffGate(() => {
-    stats(); setInterval(stats, 15000);
+    stats(); loadList(); setInterval(stats, 15000); setInterval(loadList, 60000);
+    $('#q').addEventListener('input', renderList);
+    $('#out').addEventListener('click', App.logout);
     document.querySelectorAll('[data-x]').forEach(b => b.addEventListener('click', () => exportCsv(b.dataset.x, b)));
   });
 </script>

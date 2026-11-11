@@ -69,7 +69,7 @@ const gas = {
 const ctx = vm.createContext(gas);
 const files = ['Config', 'Utils', 'Code', 'Registration', 'Checkin', 'Survey', 'Certificate', 'Mail', 'Admin', 'Setup'];
 const src = files.map(f => fs.readFileSync(path.join(gasDir, f + '.gs'), 'utf8')).join('\n;\n');
-vm.runInContext(src + '\n;this.__x={doPost,setup,processMailQueue_,LIMITS,normalizePhone_,maskName_,validHallCode_,currentHallCode_,SURVEY,EVENT,sentToday_,safeCell_,hallCodeForSlot_};', ctx);
+vm.runInContext(src + '\n;this.__x={doPost,setup,processMailQueue_,LIMITS,normalizePhone_,maskName_,validHallCode_,currentHallCode_,SURVEY,EVENT,sentToday_,safeCell_,hallCodeForSlot_,fixPhoneColumns};', ctx);
 const G = ctx.__x;
 
 props.SITE_URL = 'https://hoi-nghi.example.workers.dev';
@@ -98,6 +98,7 @@ assert.ok(sentMails[0].htmlBody.includes(r1.data.token) && sentMails[0].inlineIm
 const T = r1.data.token;
 const r2 = reg(); assert.ok(r2.data.duplicate && r2.data.token === T); assert.equal(sentMails.length, 2, 'gửi lại mail');
 assert.equal(reg({ email: 'khac@example.com' }).code, 'PHONE_EXISTS');
+assert.equal(reg({ phone: '0944444444' }).code, 'EMAIL_EXISTS');
 reg(); reg(); assert.equal(reg().code, 'RESEND_LIMIT');
 assert.ok(api('register', { name: 'Bot', phone: '0900000001', email: 'b@b.vn', unit: 'x', website: 'spam' }).ok);
 assert.equal(api('admin_stats', { pw: PW }).data.registered, 1, 'honeypot không tạo bản ghi'); ok('đăng ký, trùng SĐT, gửi lại, honeypot');
@@ -172,7 +173,19 @@ const tmp = mail.rows.find(r => r[0] === 'tmp'); assert.equal(tmp[5], 'failed');
 
 /* ---------- thống kê & xuất ---------- */
 const st = api('admin_stats', { pw: PW }).data; assert.equal(st.registered, 3); assert.equal(st.surveyed, 1); assert.equal(st.checkedIn, 3);
+const ls = api('admin_list', { pw: PW }).data.rows; assert.equal(ls.length, 3); assert.equal(ls.find(r => r[0] === 'Nguyễn Văn An')[6], 1); assert.equal(api('admin_list').code, 'FORBIDDEN');
 const ex = api('admin_export', { pw: PW, sheet: 'sur' }).data; assert.equal(ex.rows.length, 1); assert.equal(ex.rows[0][2], '0912345678'); ok('thống kê & xuất CSV');
+
+/* ---------- SĐT có số 0 đầu ---------- */
+const regSheet = books[props.SPREADSHEET_ID].getSheetByName('DangKy');
+const idx = regSheet.rows.findIndex(r => r[2] === '0933333333'); regSheet.rows[idx][2] = 933333333; // giả lập Sheets đã biến thành số
+assert.equal(api('checkin_phone', { phone: '0933333333', pw: PW }).data.name, 'Trần Thị C'); ok('đọc được SĐT dù ô đã bị đổi thành số');
+assert.equal(reg({ phone: '0933333333', email: 'c@c.vn', name: 'Trần Thị C' }).data.duplicate, true);
+assert.equal(api('admin_list', { pw: PW }).data.rows.find(r => r[0] === 'Trần Thị C')[1], '0933333333');
+assert.equal(api('admin_export', { pw: PW, sheet: 'reg' }).data.rows.find(r => r[1] === 'Trần Thị C')[2], '0933333333'); ok('trùng SĐT, danh sách, xuất CSV đều giữ số 0');
+G.fixPhoneColumns(); assert.equal(regSheet.rows[idx][2], '0933333333'); ok('fixPhoneColumns() sửa dữ liệu cũ');
+for (const name of ['DangKy', 'DiemDanh', 'KhaoSat']) for (const r of books[props.SPREADSHEET_ID].getSheetByName(name).rows.slice(1)) assert.match(String(r[2]), /^0\d{9,10}$/);
+ok('mọi dòng ở 3 sheet đều có SĐT bắt đầu bằng 0');
 
 /* ---------- Worker ---------- */
 const worker = (await import(pathToFileURL(path.join(root, 'src/worker.js')).href)).default;

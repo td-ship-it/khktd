@@ -57,7 +57,7 @@ function surveySubmit_(req) {
       throw new ApiError('ALREADY', 'Bạn đã hoàn thành khảo sát trước đó.');
     }
     var certCode = newCertCode_();
-    sh.appendRow([reg.token, safeCell_(reg.name), reg.phone, safeCell_(reg.email), safeCell_(reg.unit), nowStr_(), certCode].concat(cells));
+    appendRowText_(sh, [reg.token, safeCell_(reg.name), reg.phone, safeCell_(reg.email), safeCell_(reg.unit), nowStr_(), certCode].concat(cells), [3]);
     enqueueMail_('certificate', reg.token, reg.email); // gửi sau theo hàng đợi/hạn mức
     return certCode;
   });

@@ -58,8 +58,30 @@ function sendTestMail() {
   var me = Session.getEffectiveUser().getEmail();
   var token = 'TEST-' + randomString_(6);
   var sh = sheet_(SHEETS.REG.name);
-  sh.appendRow([token, 'Nguyễn Văn Thử', '0900000000', me, 'Đơn vị thử nghiệm', nowStr_(), 0]);
+  appendRowText_(sh, [token, 'Nguyễn Văn Thử', '0900000000', me, 'Đơn vị thử nghiệm', nowStr_(), 0], [3]);
   sendRegisterMail_({ token: token });
   sh.deleteRow(sh.getLastRow());
   Logger.log('Đã gửi mail thử tới ' + me);
+}
+
+/**
+ * Sửa dữ liệu cũ: nếu cột "Số điện thoại" từng bị Sheets đổi thành số (mất số 0 đầu),
+ * chạy hàm này một lần để thêm lại số 0 và ép cột thành văn bản. An toàn khi chạy nhiều lần.
+ */
+function fixPhoneColumns() {
+  var fixed = 0;
+  [SHEETS.REG.name, SHEETS.CHK.name, SHEETS.SUR.name].forEach(function (name) {
+    var sh = sheet_(name), last = sh.getLastRow();
+    if (last < 2) return;
+    var rng = sh.getRange(2, 3, last - 1, 1);
+    var vals = rng.getValues();
+    var out = vals.map(function (r) {
+      var f = phoneFromCell_(r[0]);
+      if (f !== String(r[0])) fixed++;
+      return [f];
+    });
+    sh.getRange(1, 3, sh.getMaxRows(), 1).setNumberFormat('@');
+    rng.setValues(out);
+  });
+  Logger.log('Đã sửa ' + fixed + ' ô số điện thoại.');
 }

@@ -7,8 +7,8 @@
 </head><body>
 <div id="gate" class="wrap"></div>
 <main id="app" class="wrap hidden">
-  <header style="padding:8px 0"><div class="eyebrow">Quét mã QR điểm danh</div>
-    <h1 data-ev="shortName"></h1></header>
+  <header class="topbar" style="padding:8px 0"><div><div class="eyebrow">Quét mã QR điểm danh</div>
+    <h1 data-ev="shortName"></h1></div><button class="btn ghost sm" id="out" type="button">Đăng xuất</button></header>
 
   <div id="res" class="result warn">Sẵn sàng quét<small>Đưa mã QR vào khung, hoặc dùng máy quét cầm tay</small></div>
 
@@ -60,6 +60,7 @@
   }
 
   App.staffGate(() => {
+    $('#out').addEventListener('click', App.logout);
     $('#mf').addEventListener('submit', ev => { ev.preventDefault(); submit($('#manual').value); });
     $('#camBtn').addEventListener('click', async () => {
       if (scanner) { await scanner.stop().catch(() => {}); scanner = null; $('#camBtn').textContent = 'Bật camera'; return; }

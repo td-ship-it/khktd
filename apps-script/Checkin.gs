@@ -9,7 +9,7 @@ function recordCheckin_(reg, method) {
   return withLock_(function () {
     var sh = sheet_(SHEETS.CHK.name);
     if (findRow_(sh, 1, reg.token)) return { already: true };
-    sh.appendRow([reg.token, safeCell_(reg.name), reg.phone, safeCell_(reg.unit), nowStr_(), method]);
+    appendRowText_(sh, [reg.token, safeCell_(reg.name), reg.phone, safeCell_(reg.unit), nowStr_(), method], [3]);
     return { already: false };
   });
 }

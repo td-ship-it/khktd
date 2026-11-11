@@ -20,6 +20,21 @@ function adminStats_() {
   };
 }
 
+function adminList_() {
+  var reg = sheet_(SHEETS.REG.name);
+  if (reg.getLastRow() < 2) return { rows: [] };
+  var set = function (name) {
+    var sh = sheet_(name), o = {};
+    if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues().forEach(function (r) { o[r[0]] = 1; });
+    return o;
+  };
+  var chk = set(SHEETS.CHK.name), sur = set(SHEETS.SUR.name);
+  var rows = reg.getRange(2, 1, reg.getLastRow() - 1, 6).getDisplayValues().map(function (r) {
+    return [r[1], phoneFromCell_(r[2]), r[3], r[4], r[5], chk[r[0]] ? 1 : 0, sur[r[0]] ? 1 : 0];
+  });
+  return { rows: rows.reverse() }; // mới nhất lên đầu
+}
+
 function adminExport_(req) {
   var map = { reg: SHEETS.REG.name, chk: SHEETS.CHK.name, sur: SHEETS.SUR.name, mail: SHEETS.MAIL.name };
   var name = map[req.sheet];
@@ -27,5 +42,8 @@ function adminExport_(req) {
   var sh = sheet_(name);
   var last = sh.getLastRow(), cols = sh.getLastColumn();
   var values = last >= 1 ? sh.getRange(1, 1, last, cols).getDisplayValues() : [];
-  return { headers: values[0] || [], rows: values.slice(1), filename: name };
+  var rows = values.slice(1);
+  var pc = (values[0] || []).indexOf('Số điện thoại');
+  if (pc >= 0) rows.forEach(function (r) { r[pc] = phoneFromCell_(r[pc]); });
+  return { headers: values[0] || [], rows: rows, filename: name };
 }

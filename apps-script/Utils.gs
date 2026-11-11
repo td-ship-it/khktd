@@ -50,6 +50,24 @@ function normalizePhone_(raw) {
   return d.replace(/\D/g, '');
 }
 
+/**
+ * Đọc SĐT từ ô Sheet an toàn: nếu ô từng bị Sheets đổi thành số (mất số 0 đầu) thì tự thêm lại.
+ * SĐT Việt Nam luôn bắt đầu bằng 0 sau khi chuẩn hoá nên 9–10 chữ số không có 0 đầu là bị mất.
+ */
+function phoneFromCell_(v) {
+  var s = String(v == null ? '' : v).replace(/\D/g, '');
+  if (s && s.charAt(0) !== '0' && (s.length === 9 || s.length === 10)) s = '0' + s;
+  return s;
+}
+
+/** Ghi 1 dòng mới, ép các cột `textCols` (ví dụ SĐT) thành văn bản TRƯỚC khi ghi để giữ số 0 đầu. */
+function appendRowText_(sh, values, textCols) {
+  var row = sh.getLastRow() + 1; // luôn gọi trong withLock_
+  (textCols || []).forEach(function (c) { sh.getRange(row, c).setNumberFormat('@'); });
+  sh.getRange(row, 1, 1, values.length).setValues([values]);
+  return row;
+}
+
 function isValidPhone_(p) { return /^0\d{9,10}$/.test(p); }
 function isValidEmail_(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e); }
 
@@ -108,17 +126,17 @@ function sheet_(name) {
 }
 
 /** Tìm hàng (1-based) có cột `col` bằng `value`; 0 nếu không có. */
-function findRow_(sh, col, value) {
+function findRow_(sh, col, value, norm) {
   var last = sh.getLastRow();
   if (last < 2) return 0;
   var vals = sh.getRange(2, col, last - 1, 1).getValues();
   var v = String(value);
-  for (var i = 0; i < vals.length; i++) if (String(vals[i][0]) === v) return i + 2;
+  for (var i = 0; i < vals.length; i++) if ((norm ? norm(vals[i][0]) : String(vals[i][0])) === v) return i + 2;
   return 0;
 }
 
 function regFromRow_(r) {
-  return { token: String(r[0]), name: String(r[1]), phone: String(r[2]), email: String(r[3]), unit: String(r[4]), createdAt: String(r[5]), resend: Number(r[6]) || 0 };
+  return { token: String(r[0]), name: String(r[1]), phone: phoneFromCell_(r[2]), email: String(r[3]), unit: String(r[4]), createdAt: String(r[5]), resend: Number(r[6]) || 0 };
 }
 
 function regByToken_(token) {
@@ -134,7 +152,7 @@ function regByToken_(token) {
 
 function regByPhone_(phone) {
   var sh = sheet_(SHEETS.REG.name);
-  var row = findRow_(sh, 3, phone);
+  var row = findRow_(sh, 3, phone, phoneFromCell_);
   if (!row) return null;
   var reg = regFromRow_(sh.getRange(row, 1, 1, 7).getValues()[0]);
   reg.row = row;
