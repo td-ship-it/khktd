@@ -30,6 +30,9 @@
   App.fillEvent('Điểm danh');
   const code = (qs.get('c') || '').trim();
   if (!code) showError($('#err'), 'Vui lòng quét mã QR chung tại hội trường để điểm danh.');
+  call('checkin_status').then(r => {
+    if (!r.open) { showError($('#err'), 'Điểm danh hiện đang khóa. Vui lòng chờ Ban tổ chức mở điểm danh.'); $('#go').disabled = true; }
+  }).catch(() => {});
   $('#f').addEventListener('submit', async ev => {
     ev.preventDefault(); hide($('#err'));
     const btn = $('#go'); btn.disabled = true;

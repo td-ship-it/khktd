@@ -16,7 +16,10 @@
     }
     let j;
     try { j = await res.json(); } catch { throw Object.assign(new Error('Máy chủ phản hồi không hợp lệ.'), { code: 'BAD' }); }
-    if (!j.ok) throw Object.assign(new Error(j.message || 'Có lỗi xảy ra.'), { code: j.code });
+    if (!j.ok) {
+      if (j.code === 'AUTH' && sessionStorage.getItem('tok') && action !== 'whoami') { sessionStorage.removeItem('tok'); location.reload(); }
+      throw Object.assign(new Error(j.message || 'Có lỗi xảy ra.'), { code: j.code });
+    }
     return j.data;
   }
 
@@ -42,26 +45,36 @@
   function showError(el, msg) { el.textContent = msg; el.classList.remove('hidden', 'ok'); el.classList.add('err'); }
   function hide(el) { el.classList.add('hidden'); }
 
-  /* Cổng đăng nhập nhân viên: mật khẩu giữ trong sessionStorage của tab. */
+  /* Cổng đăng nhập (Ban tổ chức / người hỗ trợ). Token phiên giữ trong sessionStorage của tab. */
   function staffGate(onReady) {
     const gate = $('#gate'), app = $('#app');
-    const start = pw => { App.pw = pw; gate.classList.add('hidden'); app.classList.remove('hidden'); onReady(pw); };
-    const saved = sessionStorage.getItem('pw');
+    const start = u => {
+      App.user = u; App.token = sessionStorage.getItem('tok');
+      gate.classList.add('hidden'); app.classList.remove('hidden'); onReady(u);
+    };
     gate.innerHTML = `
-      <div class="card"><h2>Đăng nhập Ban tổ chức</h2>
-        <form id="gf"><label for="gp">Mật khẩu</label>
+      <div class="card"><h2>Đăng nhập</h2>
+        <form id="gf">
+          <label for="gu">Tên đăng nhập</label>
+          <input id="gu" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+          <label for="gp">Mật khẩu</label>
           <input id="gp" type="password" autocomplete="current-password" required>
           <div id="ge" class="alert err hidden" role="alert"></div>
           <button class="btn">Đăng nhập</button></form></div>`;
-    async function tryLogin(pw, silent) {
-      try { await call('admin_ping', { pw }); sessionStorage.setItem('pw', pw); start(pw); }
-      catch (e) { sessionStorage.removeItem('pw'); if (!silent) showError($('#ge'), e.message); }
-    }
-    $('#gf').addEventListener('submit', ev => { ev.preventDefault(); tryLogin($('#gp').value, false); });
-    if (saved) tryLogin(saved, true);
+    $('#gf').addEventListener('submit', async ev => {
+      ev.preventDefault(); hide($('#ge'));
+      const btn = $('#gf button'); btn.disabled = true;
+      try {
+        const u = await call('login', { username: $('#gu').value, password: $('#gp').value });
+        sessionStorage.setItem('tok', u.token); start(u);
+      } catch (e) { showError($('#ge'), e.message); }
+      finally { btn.disabled = false; }
+    });
+    const saved = sessionStorage.getItem('tok');
+    if (saved) call('whoami', { token: saved }).then(start).catch(() => sessionStorage.removeItem('tok'));
   }
 
-  function logout() { sessionStorage.removeItem('pw'); location.reload(); }
+  function logout() { sessionStorage.removeItem('tok'); location.reload(); }
 
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -74,5 +87,12 @@
     } catch {}
   }
 
-  window.App = { $, qs, call, getConfig, fillEvent, showError, hide, staffGate, logout, esc, beep, pw: null };
+  window.App = { $, qs, call, getConfig, fillEvent, showError, hide, staffGate, logout, esc, beep, token: null, user: null };
+
+  // Chân trang chung cho mọi trang (trừ trang đặt data-nofoot trên <body>).
+  document.addEventListener('DOMContentLoaded', () => {
+    if (document.body.hasAttribute('data-nofoot')) return;
+    document.body.insertAdjacentHTML('beforeend',
+      '<footer class="foot">Phát triển bởi Bộ môn Công nghệ thông tin dược phối hợp cùng Ban tổ chức Hội nghị</footer>');
+  });
 })();

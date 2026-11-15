@@ -9,9 +9,10 @@
 const MAX_BODY = 20 * 1024;           // 20 KB là đủ cho mọi form
 const CONFIG_TTL = 300;               // cache action "config" 5 phút tại edge
 const ACTIONS = new Set([
-  'config', 'register', 'checkin_phone', 'checkin_token', 'survey_state', 'survey_submit',
+  'config', 'register', 'checkin_status', 'checkin_phone', 'checkin_token', 'survey_state', 'survey_submit',
   'certificate', 'certificate_pdf', 'verify',
-  'admin_ping', 'admin_stats', 'admin_list', 'admin_export', 'admin_hallcode'
+  'login', 'whoami', 'admin_stats', 'admin_list', 'admin_export', 'admin_hallcode', 'admin_set_checkin',
+  'user_list', 'user_save', 'user_delete'
 ]);
 
 const json = (obj, status = 200) =>

@@ -30,14 +30,14 @@
 <script>
   const { $, call, showError, hide } = App;
   App.fillEvent('Kiosk');
-  App.staffGate(pw => {
+  App.staffGate(() => {
     $('#out').addEventListener('click', App.logout);
     $('#phone').focus();
     $('#f').addEventListener('submit', async ev => {
       ev.preventDefault(); hide($('#err'));
       const btn = $('#go'); btn.disabled = true;
       try {
-        const r = await call('checkin_phone', { phone: $('#phone').value, pw });
+        const r = await call('checkin_phone', { phone: $('#phone').value, token: App.token });
         App.beep(true);
         $('#formCard').classList.add('hidden'); $('#done').classList.remove('hidden');
         $('#who').textContent = r.name; $('#unit').textContent = r.unit || '';

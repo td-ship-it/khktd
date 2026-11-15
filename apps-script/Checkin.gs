@@ -5,11 +5,11 @@
  *  3) kiosk    : bàn hỗ trợ nhập SĐT (checkin_phone, cần mật khẩu)
  */
 
-function recordCheckin_(reg, method) {
+function recordCheckin_(reg, method, by) {
   return withLock_(function () {
     var sh = sheet_(SHEETS.CHK.name);
     if (findRow_(sh, 1, reg.token)) return { already: true };
-    appendRowText_(sh, [reg.token, safeCell_(reg.name), reg.phone, safeCell_(reg.unit), nowStr_(), method], [3]);
+    appendRowText_(sh, [reg.token, safeCell_(reg.name), reg.phone, safeCell_(reg.unit), nowStr_(), method, by || ''], [3]);
     return { already: false };
   });
 }
@@ -26,9 +26,11 @@ function checkinPhone_(req) {
   var phone = normalizePhone_(req.phone);
   if (!isValidPhone_(phone)) throw new ApiError('INVALID', 'Số điện thoại không hợp lệ.');
 
-  var method, mask;
-  if (req.pw) {
-    requireAdmin_(req);
+  ensureCheckinOpen_();
+
+  var method, mask, by = '';
+  if (req.token) {
+    by = authUser_(req, ['admin', 'staff']).username;
     method = 'kiosk'; mask = false;
   } else {
     if (!validHallCode_(String(req.code || '').trim().toUpperCase())) {
@@ -41,7 +43,7 @@ function checkinPhone_(req) {
   if (!reg) {
     throw new ApiError('NOT_FOUND', 'Không tìm thấy số điện thoại này trong danh sách đăng ký. Vui lòng đến bàn hỗ trợ để đăng ký tại chỗ.');
   }
-  var r = recordCheckin_(reg, method);
+  var r = recordCheckin_(reg, method, by);
   return {
     token: reg.token,
     name: mask ? maskName_(reg.name) : reg.name,
@@ -52,10 +54,11 @@ function checkinPhone_(req) {
 }
 
 function checkinToken_(req) {
-  requireAdmin_(req);
-  var reg = regByToken_(req.token);
+  var me = authUser_(req, ['admin', 'staff']);
+  ensureCheckinOpen_();
+  var reg = regByToken_(req.qr);
   if (!reg) throw new ApiError('NOT_FOUND', 'Mã QR không hợp lệ hoặc chưa đăng ký.');
-  var r = recordCheckin_(reg, 'qr_staff');
+  var r = recordCheckin_(reg, 'qr_staff', me.username);
   return { name: reg.name, unit: reg.unit, phone: reg.phone, already: r.already };
 }
 

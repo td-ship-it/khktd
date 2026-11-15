@@ -18,6 +18,7 @@ function setup() {
     { def: SHEETS.REG,  headers: SHEETS.REG.headers,  textCols: [3] },
     { def: SHEETS.CHK,  headers: SHEETS.CHK.headers,  textCols: [3] },
     { def: SHEETS.SUR,  headers: surveyHeaders_(),    textCols: [3] },
+    { def: SHEETS.USER, headers: SHEETS.USER.headers, textCols: [1] },
     { def: SHEETS.MAIL, headers: SHEETS.MAIL.headers, textCols: [] }
   ];
   defs.forEach(function (d, i) {

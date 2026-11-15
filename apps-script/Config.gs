@@ -26,7 +26,8 @@ var LIMITS = {
   hallSlotSec: 90,        // mã QR chung đổi mỗi 90 giây
   hallSlotsAccepted: 3,   // chấp nhận mã hiện tại + 2 mã trước đó (~4,5 phút)
   mailBatch: 40,          // số mail xử lý mỗi lượt
-  mailRunSec: 240         // thời gian tối đa mỗi lần chạy trigger
+  mailRunSec: 240,        // thời gian tối đa mỗi lần chạy trigger
+  tokenHours: 12          // phiên đăng nhập quản trị/hỗ trợ hết hạn sau 12 giờ
 };
 
 /**
@@ -53,8 +54,9 @@ var SURVEY = {
 
 var SHEETS = {
   REG:  { name: 'DangKy',      headers: ['Token', 'Họ tên', 'Số điện thoại', 'Email', 'Đơn vị', 'Đăng ký lúc', 'Số lần gửi lại'] },
-  CHK:  { name: 'DiemDanh',    headers: ['Token', 'Họ tên', 'Số điện thoại', 'Đơn vị', 'Điểm danh lúc', 'Hình thức'] },
+  CHK:  { name: 'DiemDanh',    headers: ['Token', 'Họ tên', 'Số điện thoại', 'Đơn vị', 'Điểm danh lúc', 'Hình thức', 'Nhân viên thực hiện'] },
   SUR:  { name: 'KhaoSat',     headers: null }, // dựng động từ SURVEY, xem surveyHeaders_()
+  USER: { name: 'NguoiDung',  headers: ['Tên đăng nhập', 'Họ tên', 'Vai trò', 'Trạng thái', 'Mật khẩu (băm)', 'Tạo lúc', 'Đăng nhập cuối'] },
   MAIL: { name: 'HangDoiMail', headers: ['ID', 'Tạo lúc', 'Loại', 'Token', 'Email', 'Trạng thái', 'Số lần thử', 'Gửi lúc', 'Lỗi'] }
 };
 

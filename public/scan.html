@@ -52,7 +52,7 @@
     if (token === last && Date.now() - lastAt < 4000) return; // chống quét lặp
     last = token; lastAt = Date.now(); busy = true;
     try {
-      const r = await call('checkin_token', { token, pw: App.pw });
+      const r = await call('checkin_token', { qr: token, token: App.token });
       if (r.already) { App.beep(true); show('warn', r.name, 'Đã điểm danh trước đó · ' + r.unit); logLine(r.name + ' (đã điểm danh)'); }
       else { App.beep(true); count++; $('#cnt').textContent = count; show('ok', r.name, r.unit); logLine(r.name + ' · ' + r.unit); }
     } catch (e) { App.beep(false); show('err', 'Không hợp lệ', e.message); logLine(token + ': ' + e.message, 'err'); }

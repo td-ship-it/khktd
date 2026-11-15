@@ -16,6 +16,7 @@ function adminStats_() {
     mail: mail,
     mailSentToday: sentToday_(),
     mailDailyLimit: LIMITS.dailyMail,
+    checkin: checkinState_(),
     serverTime: nowStr_()
   };
 }

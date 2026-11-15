@@ -5,6 +5,7 @@
 <link rel="stylesheet" href="/assets/app.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
+<div class="banner-wrap" id="bannerWrap" hidden><img class="banner" id="banner" alt="Banner hội nghị"></div>
 <header class="hero">
   <div class="eyebrow">Đăng ký tham dự</div>
   <h1 data-ev="name">Hội nghị Khoa học kỹ thuật Dược lần thứ 43</h1>
@@ -42,6 +43,14 @@
 <script>
   const { $, call, showError, hide } = App;
   App.fillEvent('Đăng ký');
+  // Banner: đặt file public/assets/banner.jpg (hoặc .png/.webp). Không có file thì tự ẩn.
+  (function () {
+    const img = $('#banner'), exts = ['jpg', 'png', 'webp'];
+    let k = 0;
+    img.onload = () => { $('#bannerWrap').hidden = false; };
+    img.onerror = () => { if (++k < exts.length) img.src = '/assets/banner.' + exts[k]; };
+    img.src = '/assets/banner.' + exts[0];
+  })();
   const RULES = [
     ['name', v => v.trim().length >= 2, 'Vui lòng nhập họ và tên.'],
     ['phone', v => /^0\d{9,10}$/.test(v.replace(/[\s.\-]/g, '').replace(/^\+84/, '0')), 'Số điện thoại không hợp lệ (10–11 chữ số, ví dụ 0912345678).'],

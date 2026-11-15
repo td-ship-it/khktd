@@ -3,36 +3,91 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Quản trị</title>
 <link rel="stylesheet" href="/assets/app.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
 <div id="gate" class="wrap"></div>
 <main id="app" class="wrap wide hidden">
-  <header class="topbar" style="padding:14px 0"><div><div class="eyebrow">Quản trị</div><h1 data-ev="name"></h1></div>
-    <button class="btn ghost sm" id="out" type="button">Đăng xuất</button></header>
+  <header class="topbar" style="padding:14px 0">
+    <div><div class="eyebrow" id="who">Quản trị</div><h1 data-ev="name"></h1></div>
+    <button class="btn ghost sm" id="out" type="button">Đăng xuất</button>
+  </header>
 
-  <div class="grid">
+  <!-- Điểm danh: ai cũng xem được trạng thái, chỉ admin mới đổi -->
+  <section class="card">
+    <h2>Điểm danh</h2>
+    <div class="inl">
+      <span class="chip" id="ckChip"><i></i><span id="ckText">…</span></span>
+      <button class="btn sm" id="ckBtn" type="button" data-role="admin">…</button>
+    </div>
+    <div id="ckErr" class="alert err hidden"></div>
+    <p class="small muted" id="ckNote" style="margin-bottom:0">Khi khóa, cả 3 cách điểm danh (QR cá nhân, QR chung, kiosk) đều bị chặn.</p>
+  </section>
+
+  <section class="card">
+    <h2>Công cụ ngày hội nghị</h2>
+    <div class="row">
+      <a class="btn ghost" href="/screen" target="_blank" rel="noopener">Màn hình QR điểm danh chung</a>
+      <a class="btn ghost" href="/scan" target="_blank" rel="noopener">Quét QR cá nhân (bàn đón tiếp)</a>
+      <a class="btn ghost" href="/kiosk" target="_blank" rel="noopener">Kiosk nhập SĐT</a>
+    </div>
+  </section>
+
+  <div class="grid" data-role="admin">
     <div class="stat"><b id="sReg">–</b><span>Đã đăng ký</span></div>
     <div class="stat"><b id="sChk">–</b><span>Đã điểm danh</span></div>
     <div class="stat"><b id="sSur">–</b><span>Đã làm khảo sát</span></div>
     <div class="stat"><b id="sPend">–</b><span>Mail đang chờ gửi</span></div>
   </div>
 
-  <section class="card">
+  <section class="card" data-role="admin">
     <h2>Hạn mức email hôm nay</h2>
     <div><b id="mSent">–</b> / <span id="mLim">–</span> đã gửi · đã gửi tổng <b id="mTotal">–</b> · lỗi <b id="mFail">–</b></div>
     <div class="bar"><i id="mBar" style="width:0"></i></div>
     <p class="small muted">Mail vượt hạn mức tự xếp hàng và gửi tiếp vào ngày hôm sau. Cập nhật lúc <span id="at">–</span>.</p>
   </section>
 
-  <section class="card">
-    <h2>Công cụ ngày hội nghị</h2>
-    <div class="row">
-      <a class="btn ghost" href="/scan" target="_blank" rel="noopener">Quét QR cá nhân (bàn đón tiếp)</a>
-      <a class="btn ghost" href="/screen" target="_blank" rel="noopener">Màn hình QR chung</a>
-      <a class="btn ghost" href="/kiosk" target="_blank" rel="noopener">Kiosk nhập SĐT</a>
+  <section class="card" data-role="admin">
+    <h2>Mã QR đăng ký hội nghị</h2>
+    <div class="qrbox">
+      <div class="qr"><div id="regQr"></div></div>
+      <div style="flex:1;min-width:220px">
+        <label for="regUrl" style="margin-top:0">Liên kết đăng ký</label>
+        <input id="regUrl" type="text" readonly>
+        <div class="inl" style="margin-top:10px">
+          <button class="btn ghost sm" id="copyUrl" type="button">Sao chép liên kết</button>
+          <button class="btn sm" id="dlQr" type="button">Tải mã QR (PNG, in được)</button>
+        </div>
+        <p class="small muted">Ảnh PNG 1200×1200 px nền trắng, dùng để in lên poster, phông nền, thư mời.</p>
+      </div>
     </div>
   </section>
 
-  <section class="card">
+  <section class="card" data-role="admin">
+    <h2>Người dùng &amp; phân quyền</h2>
+    <p class="small muted" style="margin-top:0"><b>Hỗ trợ điểm danh</b>: chỉ vào được màn hình QR điểm danh, quét QR và kiosk. <b>Quản trị</b>: toàn quyền. Tài khoản <code>admin</code> dùng mật khẩu đặt trong Script Properties.</p>
+    <div id="uMsg" class="alert ok hidden"></div>
+    <div class="tablewrap"><table class="tbl users"><thead><tr><th>Tên đăng nhập</th><th>Họ tên</th><th>Vai trò</th><th>Trạng thái</th><th>Đăng nhập cuối</th><th></th></tr></thead>
+    <tbody id="ub"><tr><td colspan="6" class="muted">Đang tải…</td></tr></tbody></table></div>
+
+    <form id="uf" novalidate style="margin-top:14px">
+      <h2 id="ufTitle" style="font-size:16px;margin-bottom:0">Thêm người dùng</h2>
+      <div class="formgrid">
+        <div><label for="uUser">Tên đăng nhập</label><input id="uUser" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="vd: nguyen.van.a"></div>
+        <div><label for="uName">Họ tên</label><input id="uName" type="text" autocomplete="off"></div>
+        <div><label for="uRole">Vai trò</label>
+          <select id="uRole"><option value="staff">Hỗ trợ điểm danh</option><option value="admin">Quản trị</option></select></div>
+        <div style="grid-column:1/-1;max-width:460px"><label for="uPass">Mật khẩu <span class="muted small" id="uPassHint">(tối thiểu 6 ký tự)</span></label>
+          <div class="inl nowrap"><input id="uPass" type="text" autocomplete="off"><button class="btn ghost xs" id="uGen" type="button">Tạo ngẫu nhiên</button></div></div>
+      </div>
+      <div id="uErr" class="alert err hidden"></div>
+      <div class="inl" style="margin-top:12px">
+        <button class="btn sm" id="uSave">Lưu</button>
+        <button class="btn ghost sm" id="uCancel" type="button" hidden>Hủy sửa</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card" data-role="admin">
     <h2>Danh sách đăng ký <span class="muted small" id="lcount"></span></h2>
     <input id="q" type="text" placeholder="Tìm theo tên, SĐT, email, đơn vị…" autocomplete="off">
     <div class="tablewrap"><table class="tbl"><thead><tr><th>Họ tên</th><th>SĐT</th><th>Email</th><th>Đơn vị</th><th>Đăng ký lúc</th><th>Điểm danh</th><th>Khảo sát</th></tr></thead>
@@ -40,7 +95,7 @@
     <p class="small muted" id="lmore"></p>
   </section>
 
-  <section class="card">
+  <section class="card" data-role="admin">
     <h2>Xuất dữ liệu (CSV, mở được bằng Excel)</h2>
     <div class="row">
       <button class="btn ghost" data-x="reg">Danh sách đăng ký</button>
@@ -53,21 +108,142 @@
 </main>
 <script src="/assets/app.js"></script>
 <script>
-  const { $, call, showError, hide } = App;
+  const { $, call, showError, hide, esc } = App;
   App.fillEvent('Quản trị');
+  // Địa chỉ trang đăng ký gắn vào mã QR. Đổi tên miền thì sửa dòng này.
+  const REG_URL = 'https://khktd.truongduoc.workers.dev/';
+  const ROLE = { admin: 'Quản trị', staff: 'Hỗ trợ điểm danh' };
+  let isAdmin = false, ckOpen = false;
 
+  /* ---------- Điểm danh: khóa / mở ---------- */
+  function renderCheckin(open, by, at) {
+    ckOpen = open;
+    $('#ckChip').classList.toggle('on', open);
+    $('#ckText').textContent = open ? 'ĐANG MỞ' : 'ĐANG KHÓA';
+    $('#ckBtn').textContent = open ? 'Khóa điểm danh' : 'Mở điểm danh';
+    $('#ckBtn').classList.toggle('danger', open);
+    if (by) $('#ckNote').textContent = 'Cập nhật lần cuối bởi ' + by + ' lúc ' + at + '. Khi khóa, cả 3 cách điểm danh (QR cá nhân, QR chung, kiosk) đều bị chặn.';
+  }
+  async function refreshCheckin() {
+    try { const r = await call('checkin_status'); if (r.open !== ckOpen || !$('#ckText').textContent.startsWith('Đ')) renderCheckin(r.open); } catch {}
+  }
+  async function toggleCheckin() {
+    const next = !ckOpen;
+    if (!next && !confirm('Khóa điểm danh? Không ai điểm danh được cho tới khi mở lại.')) return;
+    if (next && !confirm('Mở điểm danh? Người dự có thể điểm danh ngay.')) return;
+    hide($('#ckErr')); $('#ckBtn').disabled = true;
+    try { const r = await call('admin_set_checkin', { token: App.token, open: next }); renderCheckin(r.open, r.by, r.at); }
+    catch (e) { showError($('#ckErr'), e.message); }
+    finally { $('#ckBtn').disabled = false; }
+  }
+
+  /* ---------- Thống kê ---------- */
   async function stats() {
     try {
-      const s = await call('admin_stats', { pw: App.pw });
+      const s = await call('admin_stats', { token: App.token });
       $('#sReg').textContent = s.registered; $('#sChk').textContent = s.checkedIn; $('#sSur').textContent = s.surveyed;
       $('#sPend').textContent = s.mail.pending + s.mail.sending;
       $('#mSent').textContent = s.mailSentToday; $('#mLim').textContent = s.mailDailyLimit;
       $('#mTotal').textContent = s.mail.sent; $('#mFail').textContent = s.mail.failed;
       $('#mBar').style.width = Math.min(100, Math.round(100 * s.mailSentToday / s.mailDailyLimit)) + '%';
       $('#at').textContent = s.serverTime;
+      renderCheckin(s.checkin.open, s.checkin.by, s.checkin.at);
     } catch {}
   }
 
+  /* ---------- QR đăng ký ---------- */
+  function setupRegQr() {
+    const url = REG_URL;
+    $('#regUrl').value = url;
+    new QRCode($('#regQr'), { text: url, width: 180, height: 180, correctLevel: QRCode.CorrectLevel.M });
+    $('#copyUrl').addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(url); } catch { $('#regUrl').select(); document.execCommand('copy'); }
+      $('#copyUrl').textContent = 'Đã sao chép ✓'; setTimeout(() => { $('#copyUrl').textContent = 'Sao chép liên kết'; }, 1800);
+    });
+    $('#dlQr').addEventListener('click', () => {
+      const tmp = document.createElement('div'); tmp.style.cssText = 'position:fixed;left:-9999px;top:0';
+      document.body.appendChild(tmp);
+      new QRCode(tmp, { text: url, width: 1024, height: 1024, correctLevel: QRCode.CorrectLevel.M });
+      const src = tmp.querySelector('canvas');
+      const out = document.createElement('canvas'); out.width = out.height = 1200;
+      const g = out.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, 1200, 1200);
+      g.imageSmoothingEnabled = false; g.drawImage(src, 88, 88, 1024, 1024);
+      out.toBlob(b => {
+        const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'QR-dang-ky-hoi-nghi.png';
+        document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 10000); tmp.remove();
+      }, 'image/png');
+    });
+  }
+
+  /* ---------- Người dùng ---------- */
+  const rnd = n => { const A = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'; const b = new Uint32Array(n); crypto.getRandomValues(b); return [...b].map(x => A[x % A.length]).join(''); };
+  let users = [], editing = null;
+
+  function showMsg(html) { const m = $('#uMsg'); m.innerHTML = html; m.classList.remove('hidden'); }
+  function credMsg(u, pw) { showMsg('Đã lưu. Gửi cho người dùng: tên đăng nhập <span class="secret">' + esc(u) + '</span> · mật khẩu <span class="secret">' + esc(pw) + '</span> <span class="small">(mật khẩu chỉ hiện lúc này, hãy ghi lại)</span>'); }
+
+  function renderUsers() {
+    $('#ub').innerHTML = users.map(u =>
+      '<tr><td><b>' + esc(u.username) + '</b></td><td>' + esc(u.name) + '</td><td>' + esc(ROLE[u.role] || u.role) + '</td>' +
+      '<td><span class="tag' + (u.active ? ' on' : '') + '">' + (u.active ? 'Đang hoạt động' : 'Đã khóa') + '</span></td>' +
+      '<td>' + esc(u.lastLogin || '–') + '</td><td>' + (u.builtin ? '<span class="muted small">cố định</span>' :
+        '<div class="inl">' +
+        '<button class="btn ghost xs" data-a="edit" data-u="' + esc(u.username) + '">Sửa</button>' +
+        '<button class="btn ghost xs" data-a="reset" data-u="' + esc(u.username) + '">Đặt lại MK</button>' +
+        '<button class="btn ghost xs" data-a="toggle" data-u="' + esc(u.username) + '">' + (u.active ? 'Khóa' : 'Mở') + '</button>' +
+        '<button class="btn danger xs" data-a="del" data-u="' + esc(u.username) + '">Xóa</button></div>') + '</td></tr>').join('');
+  }
+  async function loadUsers() { try { users = (await call('user_list', { token: App.token })).users; renderUsers(); } catch {} }
+
+  function resetForm() {
+    editing = null; $('#uf').reset(); $('#uUser').readOnly = false; $('#ufTitle').textContent = 'Thêm người dùng';
+    $('#uPassHint').textContent = '(tối thiểu 6 ký tự)'; $('#uCancel').hidden = true; hide($('#uErr'));
+  }
+  function editUser(u) {
+    editing = u; $('#uUser').value = u.username; $('#uUser').readOnly = true; $('#uName').value = u.name; $('#uRole').value = u.role; $('#uPass').value = '';
+    $('#ufTitle').textContent = 'Sửa người dùng ' + u.username; $('#uPassHint').textContent = '(để trống nếu giữ nguyên)'; $('#uCancel').hidden = false;
+    $('#uf').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  async function saveUser(data, pw) {
+    await call('user_save', { token: App.token, ...data });
+    await loadUsers();
+    if (pw) credMsg(data.username, pw); else showMsg('Đã lưu thay đổi.');
+  }
+
+  function setupUsers() {
+    $('#uGen').addEventListener('click', () => { $('#uPass').value = rnd(8); });
+    $('#uCancel').addEventListener('click', resetForm);
+    $('#uf').addEventListener('submit', async ev => {
+      ev.preventDefault(); hide($('#uErr')); hide($('#uMsg'));
+      const pw = $('#uPass').value;
+      try {
+        await saveUser({ username: $('#uUser').value.trim(), name: $('#uName').value, role: $('#uRole').value, password: pw, active: editing ? editing.active : true }, pw);
+        resetForm();
+      } catch (e) { showError($('#uErr'), e.message); }
+    });
+    $('#ub').addEventListener('click', async ev => {
+      const b = ev.target.closest('button[data-a]'); if (!b) return;
+      const u = users.find(x => x.username === b.dataset.u); if (!u) return;
+      hide($('#uMsg'));
+      try {
+        if (b.dataset.a === 'edit') return editUser(u);
+        if (b.dataset.a === 'reset') {
+          if (!confirm('Đặt lại mật khẩu cho ' + u.username + '? Phiên đăng nhập hiện tại của họ sẽ bị đăng xuất.')) return;
+          const pw = rnd(8); return await saveUser({ username: u.username, name: u.name, role: u.role, active: u.active, password: pw }, pw);
+        }
+        if (b.dataset.a === 'toggle') {
+          if (u.active && !confirm('Khóa tài khoản ' + u.username + '? Họ sẽ bị đăng xuất ngay.')) return;
+          return await saveUser({ username: u.username, name: u.name, role: u.role, active: !u.active }, '');
+        }
+        if (b.dataset.a === 'del') {
+          if (!confirm('Xóa vĩnh viễn tài khoản ' + u.username + '?')) return;
+          await call('user_delete', { token: App.token, username: u.username }); await loadUsers(); showMsg('Đã xóa ' + esc(u.username) + '.');
+        }
+      } catch (e) { showMsg('<span style="color:var(--err)">' + esc(e.message) + '</span>'); }
+    });
+  }
+
+  /* ---------- Danh sách đăng ký ---------- */
   let all = [];
   const MAXROWS = 200;
   function renderList() {
@@ -75,27 +251,25 @@
     const rows = q ? all.filter(r => r.slice(0, 4).join(' ').toLowerCase().includes(q)) : all;
     const shown = rows.slice(0, MAXROWS);
     $('#tb').innerHTML = shown.length ? shown.map(r =>
-      '<tr><td>' + App.esc(r[0]) + '</td><td>' + App.esc(r[1]) + '</td><td>' + App.esc(r[2]) + '</td><td>' + App.esc(r[3]) + '</td><td>' + App.esc(r[4]) +
+      '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td><td>' + esc(r[2]) + '</td><td>' + esc(r[3]) + '</td><td>' + esc(r[4]) +
       '</td><td><span class="tag' + (r[5] ? ' on' : '') + '">' + (r[5] ? 'Đã' : 'Chưa') + '</span></td><td><span class="tag' + (r[6] ? ' on' : '') + '">' + (r[6] ? 'Đã' : 'Chưa') + '</span></td></tr>'
     ).join('') : '<tr><td colspan="7" class="muted">Không có dữ liệu</td></tr>';
     $('#lcount').textContent = '(' + all.length + ')';
     $('#lmore').textContent = rows.length > MAXROWS ? 'Đang hiện ' + MAXROWS + ' / ' + rows.length + ' dòng đầu. Dùng ô tìm kiếm hoặc xuất CSV để xem đủ.' : '';
   }
-  async function loadList() {
-    try { all = (await call('admin_list', { pw: App.pw })).rows; renderList(); } catch {}
-  }
+  async function loadList() { try { all = (await call('admin_list', { token: App.token })).rows; renderList(); } catch {} }
 
+  /* ---------- Xuất CSV ---------- */
   const cell = v => {
     let s = String(v);
     if (/^0\d{6,}$/.test(s)) return '"=""' + s + '"""';   // Excel giữ số 0 đầu của SĐT
-    if (/^[=+\-@]/.test(s)) s = "'" + s;           // chặn công thức khi mở bằng Excel
+    if (/^[=+\-@]/.test(s)) s = "'" + s;                  // chặn công thức khi mở bằng Excel
     return '"' + s.replace(/"/g, '""') + '"';
   };
-
   async function exportCsv(which, btn) {
     hide($('#xe')); const old = btn.textContent; btn.disabled = true; btn.textContent = 'Đang tải…';
     try {
-      const r = await call('admin_export', { pw: App.pw, sheet: which });
+      const r = await call('admin_export', { token: App.token, sheet: which });
       const csv = '﻿' + [r.headers, ...r.rows].map(row => row.map(cell).join(',')).join('\r\n');
       const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
       const a = document.createElement('a'); a.href = url;
@@ -105,10 +279,17 @@
     finally { btn.disabled = false; btn.textContent = old; }
   }
 
-  App.staffGate(() => {
-    stats(); loadList(); setInterval(stats, 15000); setInterval(loadList, 60000);
-    $('#q').addEventListener('input', renderList);
+  App.staffGate(user => {
+    isAdmin = user.role === 'admin';
+    $('#who').textContent = (isAdmin ? 'Quản trị' : 'Hỗ trợ điểm danh') + ' · ' + user.name;
     $('#out').addEventListener('click', App.logout);
+    document.querySelectorAll('[data-role="admin"]').forEach(el => { if (!isAdmin) el.classList.add('hidden'); });
+    refreshCheckin(); setInterval(refreshCheckin, 15000);
+    if (!isAdmin) return;
+    $('#ckBtn').addEventListener('click', toggleCheckin);
+    stats(); loadList(); loadUsers(); setupRegQr(); setupUsers();
+    setInterval(stats, 15000); setInterval(loadList, 60000);
+    $('#q').addEventListener('input', renderList);
     document.querySelectorAll('[data-x]').forEach(b => b.addEventListener('click', () => exportCsv(b.dataset.x, b)));
   });
 </script>

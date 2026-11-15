@@ -7,7 +7,7 @@ Người dùng ──► Cloudflare Worker (trang web + proxy /api) ──► Go
 
 | Thành phần | Việc làm | Thư mục |
 |---|---|---|
-| Google Apps Script | API, Google Sheet làm CSDL, hàng đợi mail, tạo PDF chứng nhận | `apps-script/` |
+| Google Apps Script | API, Google Sheet làm CSDL, tài khoản, hàng đợi mail, tạo PDF chứng nhận | `apps-script/` |
 | Cloudflare Worker | Phục vụ giao diện, proxy `/api` tới Apps Script (ẩn URL + khoá) | `src/worker.js`, `public/` |
 | GitHub + Cloudflare Builds | Tự deploy Worker khi push lên `main` | cấu hình trên Cloudflare |
 
@@ -77,12 +77,32 @@ Các dòng còn lại (ngày hội nghị, ngày ký, người ký…) là chữ
 
 **Cách hoạt động**: lần đầu một người xem chứng nhận, hệ thống sao chép mẫu, thay chữ, xuất PDF (khoảng 3–6 giây), lưu vào thư mục Drive `Hội nghị Dược 43 – Chứng nhận PDF` rồi xóa bản sao. Những lần sau, trang web và email đều dùng lại file PDF đã lưu nên nhanh và không tạo lại. Dung lượng khoảng 0,3–1 MB mỗi người. Chưa đặt `CERT_TEMPLATE_ID` thì hệ thống dùng mẫu HTML dự phòng (A4 dọc).
 
+## Tài khoản, phân quyền và khóa/mở điểm danh
+
+Mọi công cụ cho Ban tổ chức (`/admin`, `/screen`, `/scan`, `/kiosk`) đăng nhập bằng **tên đăng nhập + mật khẩu**.
+
+- Tài khoản **`admin`**: mật khẩu là Script Property `ADMIN_PASSWORD`. Tài khoản này cố định, không sửa hay xóa trong giao diện.
+- Trong `/admin` → **Người dùng & phân quyền**, admin tạo thêm tài khoản cho người phối hợp:
+  - **Hỗ trợ điểm danh**: chỉ dùng được màn hình QR điểm danh, quét QR và kiosk. Vào `/admin` chỉ thấy trạng thái điểm danh và các nút mở công cụ, không xem được danh sách, thống kê, xuất dữ liệu.
+  - **Quản trị**: toàn quyền.
+  - Có thể sửa, khóa, đặt lại mật khẩu (tạo ngẫu nhiên, chỉ hiện một lần), xóa. Khóa hoặc đổi mật khẩu thì người đó bị đăng xuất ngay. Phiên đăng nhập tự hết hạn sau 12 giờ.
+- Bảng `DiemDanh` ghi thêm cột **Nhân viên thực hiện** (tên đăng nhập người quét hoặc dùng kiosk).
+- Nút **Mở/Khóa điểm danh** ở đầu trang `/admin` (chỉ admin bấm được). **Mặc định là KHÓA**. Khi khóa, cả 3 cách điểm danh bị chặn: QR cá nhân, QR chung, kiosk. Màn hình `/screen` hiện "Điểm danh đang khóa" thay cho mã QR.
+- **Mã QR đăng ký** ở `/admin`: bấm **Tải mã QR** để lấy ảnh PNG 1200×1200 px nền trắng, dùng in poster và thư mời. QR trỏ tới `https://khktd.truongduoc.workers.dev/`. Khi đổi sang tên miền khác, sửa hằng số `REG_URL` ở đầu phần script trong `public/admin.html`, push lên rồi tải lại QR.
+
+## Banner và chân trang
+
+- **Banner** trang đăng ký: chép ảnh vào `public/assets/banner.jpg` (hoặc `.png`, `.webp`) rồi push. Nên dùng ảnh ngang tỉ lệ khoảng 16:5 (ví dụ 1920×600 px), dung lượng dưới 300 KB. Không có file thì banner tự ẩn.
+- **Chân trang** mọi trang (trừ màn hình `/screen`): "Phát triển bởi Bộ môn Công nghệ thông tin dược phối hợp cùng Ban tổ chức Hội nghị". Muốn đổi chữ thì sửa trong `public/assets/app.js`.
+
 ## Vận hành ngày hội nghị
 
-- Bàn đón tiếp: mở `/scan` trên điện thoại/máy tính, đăng nhập một lần (hoặc cắm máy quét cầm tay, con trỏ luôn nằm sẵn trong ô nhập).
-- Màn hình lớn ở cửa: mở `/screen` rồi để toàn màn hình. Muốn dán QR giấy cố định thì đặt Script Property `STATIC_HALL_CODE` (ví dụ `HNDUOC43`) và in QR trỏ tới `https://<tên-miền>/checkin?c=HNDUOC43`. Mã tĩnh kém an toàn hơn mã xoay vòng, nên xoá property này sau khi kết thúc.
-- Bàn hỗ trợ: máy tính bảng mở `/kiosk`. Người chưa đăng ký đăng ký tại chỗ ở `/` rồi điểm danh.
-- Theo dõi: `/admin`.
+1. Trước giờ G: đăng nhập `/admin` bằng `admin`, tạo tài khoản cho từng người phối hợp, gửi tên đăng nhập và mật khẩu cho họ.
+2. Khi bắt đầu: bấm **Mở điểm danh**.
+3. Bàn đón tiếp: mở `/scan` trên điện thoại hoặc máy tính, đăng nhập một lần (hoặc cắm máy quét cầm tay, con trỏ luôn nằm sẵn trong ô nhập).
+4. Màn hình lớn ở cửa: mở `/screen` rồi để toàn màn hình. Muốn dán QR giấy cố định thì đặt Script Property `STATIC_HALL_CODE` (ví dụ `HNDUOC43`) và in QR trỏ tới `https://<tên-miền>/checkin?c=HNDUOC43`. Mã tĩnh kém an toàn hơn mã xoay vòng, nên xóa property này sau khi kết thúc.
+5. Bàn hỗ trợ: máy tính bảng mở `/kiosk`. Người chưa đăng ký thì đăng ký tại chỗ ở `/` rồi điểm danh.
+6. Kết thúc: bấm **Khóa điểm danh**. Theo dõi số liệu ở `/admin`.
 
 ## Giới hạn và lưu ý
 

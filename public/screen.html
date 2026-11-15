@@ -4,14 +4,17 @@
 <title>Màn hình QR điểm danh</title>
 <link rel="stylesheet" href="/assets/app.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-</head><body>
+</head><body data-nofoot>
 <div id="gate" class="wrap"></div>
 <main id="app" class="screen hidden">
   <div class="eyebrow">Điểm danh tại hội nghị</div>
   <h1 data-ev="name"></h1>
   <p class="muted" style="font-size:20px">Quét mã bằng điện thoại, nhập số điện thoại đã đăng ký</p>
-  <div class="qr"><div id="qr"></div></div>
-  <p class="muted count">Mã đổi sau <b id="left">--</b> giây</p>
+  <div id="qrArea">
+    <div class="qr"><div id="qr"></div></div>
+    <p class="muted count">Mã đổi sau <b id="left">--</b> giây</p>
+  </div>
+  <div id="closed" class="result err hidden">Điểm danh đang khóa<small>Ban tổ chức sẽ mở điểm danh khi hội nghị bắt đầu</small></div>
 </main>
 <script src="/assets/app.js"></script>
 <script>
@@ -26,9 +29,11 @@
   }
   async function refresh() {
     try {
-      const r = await App.call('admin_hallcode', { pw: App.pw });
+      const r = await App.call('admin_hallcode', { token: App.token });
       left = r.expiresIn;
-      if (r.code !== current) { current = r.code; render(r.code); }
+      $('#closed').classList.toggle('hidden', r.open);
+      $('#qrArea').classList.toggle('hidden', !r.open);
+      if (r.open && r.code !== current) { current = r.code; render(r.code); }
     } catch (e) { /* giữ mã đang hiển thị, thử lại lượt sau */ }
   }
   App.staffGate(() => {

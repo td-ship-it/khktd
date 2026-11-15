@@ -31,32 +31,32 @@ function json_(obj) {
 }
 
 var ROUTES = {
+  // công khai
   config:          function () { return { event: publicEvent_(), survey: SURVEY.questions }; },
   register:        function (r) { return register_(r); },
+  checkin_status:  function () { return { open: checkinState_().open }; },
   checkin_phone:   function (r) { return checkinPhone_(r); },
-  checkin_token:   function (r) { return checkinToken_(r); },
   survey_state:    function (r) { return surveyState_(r); },
   survey_submit:   function (r) { return surveySubmit_(r); },
   certificate:     function (r) { return certificate_(r); },
   certificate_pdf: function (r) { return certificatePdf_(r); },
   verify:          function (r) { return verify_(r); },
-  admin_ping:      function (r) { requireAdmin_(r); return { ok: true }; },
-  admin_stats:     function (r) { requireAdmin_(r); return adminStats_(); },
-  admin_list:      function (r) { requireAdmin_(r); return adminList_(); },
-  admin_export:    function (r) { requireAdmin_(r); return adminExport_(r); },
-  admin_hallcode:  function (r) { requireAdmin_(r); return currentHallCode_(); }
+  login:           function (r) { return login_(r); },
+  // cần đăng nhập (admin hoặc staff)
+  whoami:          function (r) { var u = authUser_(r); return { username: u.username, name: u.name, role: u.role }; },
+  checkin_token:   function (r) { return checkinToken_(r); },
+  admin_hallcode:  function (r) {
+    authUser_(r, ['admin', 'staff']);
+    var h = currentHallCode_();
+    h.open = checkinState_().open;
+    return h;
+  },
+  // chỉ admin
+  admin_stats:       function (r) { authUser_(r, ['admin']); return adminStats_(); },
+  admin_list:        function (r) { authUser_(r, ['admin']); return adminList_(); },
+  admin_export:      function (r) { authUser_(r, ['admin']); return adminExport_(r); },
+  admin_set_checkin: function (r) { return setCheckin_(r); },
+  user_list:         function (r) { return userList_(r); },
+  user_save:         function (r) { return userSave_(r); },
+  user_delete:       function (r) { return userDelete_(r); }
 };
-
-/* ---------- Xác thực quản trị (chống dò mật khẩu theo IP) ---------- */
-
-function requireAdmin_(req) {
-  var cache = CacheService.getScriptCache();
-  var ipKey = 'fail_' + clean_(req.ip || 'unknown', 45).replace(/[^\w.:]/g, '_');
-  var fails = Number(cache.get(ipKey)) || 0;
-  if (fails >= 10) throw new ApiError('LOCKED', 'Nhập sai quá nhiều lần. Vui lòng thử lại sau 10 phút.');
-  var pw = prop_('ADMIN_PASSWORD');
-  if (!pw || !safeEq_(req.pw, pw)) {
-    cache.put(ipKey, String(fails + 1), 600);
-    throw new ApiError('FORBIDDEN', 'Mật khẩu không đúng.');
-  }
-}
