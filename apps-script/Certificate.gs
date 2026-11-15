@@ -25,15 +25,76 @@ function qrBlob_(text, name, size) {
   return null;
 }
 
+function certTemplateId_() { return prop_('CERT_TEMPLATE_ID') || ''; }
+
 function certificate_(req) {
   var c = certData_(req.t);
-  return { name: c.name, code: c.code, html: certificateHtml_(c, false) };
+  if (certTemplateId_()) {
+    // Có mẫu Google Slides: trả thẳng PDF (đã lưu đệm trong Drive) để web hiển thị đúng mẫu.
+    var blob = certificatePdfBlob_(c);
+    return { mode: 'pdf', name: c.name, code: c.code, filename: blob.getName(), pdf: Utilities.base64Encode(blob.getBytes()) };
+  }
+  return { mode: 'html', name: c.name, code: c.code, html: certificateHtml_(c, false) };
 }
 
 function certificatePdfBlob_(c) {
-  var html = certificateHtml_(c, true);
   var fname = 'Giay-chung-nhan-' + c.code + '.pdf';
+  if (certTemplateId_()) {
+    // PDF tạo 1 lần rồi lưu trong thư mục Drive; web và mail dùng chung → không tạo lại.
+    var folder = certFolder_();
+    var it = folder.getFilesByName(c.code + '.pdf');
+    if (it.hasNext()) return it.next().getBlob().setName(fname);
+    var made = certificatePdfFromSlides_(c);
+    folder.createFile(made.setName(c.code + '.pdf'));
+    return made.setName(fname);
+  }
+  var html = certificateHtml_(c, true);
   return Utilities.newBlob(html, 'text/html', 'cert.html').getAs('application/pdf').setName(fname);
+}
+
+function certFolder_() {
+  var id = prop_('CERT_FOLDER_ID');
+  if (id) { try { return DriveApp.getFolderById(id); } catch (e) { /* tạo mới bên dưới */ } }
+  var f = DriveApp.createFolder('Hội nghị Dược 43 – Chứng nhận PDF');
+  PropertiesService.getScriptProperties().setProperty('CERT_FOLDER_ID', f.getId());
+  return f;
+}
+
+function escapeRegExp_(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+/**
+ * Sao chép mẫu Google Slides, thay các chỗ điền, xuất PDF rồi bỏ bản sao.
+ * Chỗ điền trong mẫu: {{HOTEN}} (viết hoa), {{MACN}}, {{DONVI}}, {{NGAYCAP}} (dd/MM/yyyy). Chỗ nào không có thì bỏ qua.
+ */
+function certificatePdfFromSlides_(c) {
+  var copy = DriveApp.getFileById(certTemplateId_()).makeCopy('tmp-' + c.code);
+  try {
+    var pres = SlidesApp.openById(copy.getId());
+    var name = c.name.toUpperCase();
+    var d = c.issuedAt.substring(0, 10).split('-'); // yyyy-MM-dd
+    pres.replaceAllText('{{HOTEN}}', name);
+    pres.replaceAllText('{{MACN}}', c.code);
+    pres.replaceAllText('{{DONVI}}', c.unit);
+    pres.replaceAllText('{{NGAYCAP}}', d.length === 3 ? d[2] + '/' + d[1] + '/' + d[0] : '');
+    fitName_(pres, name);
+    pres.saveAndClose();
+    return copy.getAs('application/pdf');
+  } finally {
+    copy.setTrashed(true);
+  }
+}
+
+/** Tên dài thì giảm cỡ chữ để không bị xuống dòng (mẫu: 32pt, vừa ~28 ký tự in hoa). */
+function fitName_(pres, name) {
+  var BASE = 32, MAX_CHARS = 28, MIN = 18;
+  if (name.length <= MAX_CHARS) return;
+  var size = Math.max(MIN, Math.floor(BASE * MAX_CHARS / name.length));
+  var re = escapeRegExp_(name);
+  pres.getSlides().forEach(function (slide) {
+    slide.getShapes().forEach(function (shape) {
+      shape.getText().find(re).forEach(function (r) { r.getTextStyle().setFontSize(size); });
+    });
+  });
 }
 
 function certificatePdf_(req) {

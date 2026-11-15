@@ -187,6 +187,33 @@ G.fixPhoneColumns(); assert.equal(regSheet.rows[idx][2], '0933333333'); ok('fixP
 for (const name of ['DangKy', 'DiemDanh', 'KhaoSat']) for (const r of books[props.SPREADSHEET_ID].getSheetByName(name).rows.slice(1)) assert.match(String(r[2]), /^0\d{9,10}$/);
 ok('mọi dòng ở 3 sheet đều có SĐT bắt đầu bằng 0');
 
+/* ---------- Chứng nhận theo mẫu Google Slides ---------- */
+const drive = { copies: [], trashed: [], folder: null, repl: {}, size: undefined };
+gas.DriveApp = {
+  getFileById: () => ({ makeCopy: name => { const f = { id: 'copy' + drive.copies.length, name, getId() { return this.id; },
+    getAs: () => blob(Buffer.from('%PDF-1.4 slides ' + JSON.stringify(drive.repl)), 'x.pdf', 'application/pdf'), setTrashed: v => drive.trashed.push(f.id) }; drive.copies.push(f); drive.repl = {}; return f; } }),
+  getFolderById: () => { if (!drive.folder) throw new Error('nf'); return drive.folder; },
+  createFolder: () => (drive.folder = { files: {}, getId: () => 'folder1',
+    getFilesByName(n) { const f = this.files[n]; let used = false; return { hasNext: () => !!f && !used, next: () => { used = true; return { getBlob: () => f }; } }; },
+    createFile(b) { this.files[b.getName()] = b; return {}; } })
+};
+gas.SlidesApp = { openById: () => ({ replaceAllText: (a, b) => { drive.repl[a] = b; },
+  getSlides: () => [{ getShapes: () => [{ getText: () => ({ find: () => [{ getTextStyle: () => ({ setFontSize: s => { drive.size = s; } }) }] }) }] }], saveAndClose() {} }) };
+props.CERT_TEMPLATE_ID = 'TPL';
+const c1 = api('certificate', { t: T }).data;
+assert.equal(c1.mode, 'pdf'); assert.ok(Buffer.from(c1.pdf, 'base64').toString().startsWith('%PDF')); assert.ok(c1.filename.endsWith('.pdf'));
+assert.equal(drive.repl['{{HOTEN}}'], 'NGUYỄN VĂN AN'); assert.equal(drive.repl['{{MACN}}'], sv.data.certCode); assert.match(drive.repl['{{NGAYCAP}}'], /^\d\d\/\d\d\/\d{4}$/);
+assert.equal(drive.size, undefined, 'tên ngắn giữ cỡ chữ gốc'); assert.equal(drive.trashed.length, 1); ok('chứng nhận từ mẫu Slides: thay tên viết hoa, mã, ngày; xoá bản sao');
+api('certificate', { t: T }); api('certificate_pdf', { t: T }); assert.equal(drive.copies.length, 1, 'PDF đã lưu đệm, không tạo lại'); ok('PDF lưu đệm trong Drive, dùng chung web/PDF/mail');
+const LONG = 'Nguyễn Thị Hoàng Thanh Thảo Minh Châu';
+const lt = reg({ name: LONG, phone: '0955555555', email: 'long@l.vn' }).data.token;
+api('checkin_phone', { phone: '0955555555', pw: PW }); api('survey_submit', { t: lt, answers });
+assert.equal(api('certificate', { t: lt }).data.mode, 'pdf'); assert.equal(drive.size, Math.floor(32 * 28 / LONG.length)); assert.ok(drive.size < 32 && drive.size >= 18); ok('tên dài tự giảm cỡ chữ');
+const mailsBefore = sentMails.length; mail.rows.push(['c1', 'x', 'certificate', T, 'an@example.com', 'pending', 0, '', '']);
+props['SENT_' + Object.keys(props).find(k => k.startsWith('SENT_')).slice(5)] = '0'; quota = 1500; const copiesBefore = drive.copies.length;
+G.processMailQueue_({}); const certMail = sentMails.slice(mailsBefore).find(m => m.subject.includes('Giấy chứng nhận')); assert.ok(certMail && certMail.attachments[0].getName().endsWith('.pdf')); assert.equal(drive.copies.length, copiesBefore); ok('mail chứng nhận đính kèm PDF đã lưu đệm');
+delete props.CERT_TEMPLATE_ID; assert.equal(api('certificate', { t: T }).data.mode, 'html'); ok('không đặt CERT_TEMPLATE_ID thì dùng mẫu HTML dự phòng');
+
 /* ---------- Worker ---------- */
 const worker = (await import(pathToFileURL(path.join(root, 'src/worker.js')).href)).default;
 const store = new Map(); globalThis.caches = { default: { match: async k => store.get(k.url)?.clone(), put: async (k, v) => { store.set(k.url, v); } } };

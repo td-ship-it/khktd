@@ -39,6 +39,7 @@ function setup() {
   if (!props.getProperty('HMAC_SECRET')) props.setProperty('HMAC_SECRET', Utilities.getUuid() + Utilities.getUuid());
 
   installTrigger();
+  if (props.getProperty('CERT_TEMPLATE_ID')) certFolder_(); // tạo thư mục lưu PDF chứng nhận
 
   Logger.log('Google Sheet dữ liệu: ' + ss.getUrl());
   if (created.API_KEY) Logger.log('API_KEY (nhập vào Cloudflare secret API_KEY): ' + created.API_KEY);
@@ -84,4 +85,16 @@ function fixPhoneColumns() {
     rng.setValues(out);
   });
   Logger.log('Đã sửa ' + fixed + ' ô số điện thoại.');
+}
+
+/**
+ * Kiểm tra mẫu chứng nhận Google Slides: tạo 1 PDF thử và lưu vào Drive (không ghi vào Sheet).
+ * Chạy hàm này sau khi đặt CERT_TEMPLATE_ID; lần đầu Google sẽ hỏi cấp quyền Drive và Slides.
+ */
+function testCertificate() {
+  if (!prop_('CERT_TEMPLATE_ID')) throw new Error('Chưa đặt Script Property CERT_TEMPLATE_ID.');
+  var c = { name: 'Nguyễn Thị Hoàng Thanh Thảo', unit: 'Đơn vị thử nghiệm', code: 'CN43-THUNGHIEM', issuedAt: nowStr_() };
+  var blob = certificatePdfFromSlides_(c);
+  var f = DriveApp.createFile(blob.setName('THU-giay-chung-nhan.pdf'));
+  Logger.log('Đã tạo PDF thử: ' + f.getUrl());
 }

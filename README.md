@@ -56,6 +56,27 @@ Người dùng ──► Cloudflare Worker (trang web + proxy /api) ──► Go
 
 Deploy tay (không qua GitHub): `npm i && npx wrangler login && npx wrangler deploy`, rồi thêm 2 secret ở bước 3.
 
+## Giấy chứng nhận theo mẫu Google Slides
+
+Mẫu nằm ở `template/mau-chung-nhan.pptx` (A4 ngang, đã có chỗ điền). Các chỗ điền trong mẫu:
+
+| Chỗ điền | Nội dung |
+|---|---|
+| `{{HOTEN}}` | Họ tên, tự viết hoa; tên dài tự giảm cỡ chữ |
+| `{{MACN}}` | Mã chứng nhận để xác thực tại `/verify` (dòng nhỏ góc dưới trái, xóa được nếu không cần) |
+| `{{DONVI}}`, `{{NGAYCAP}}` | Tuỳ chọn, mẫu hiện không dùng. Thêm vào mẫu nếu muốn in đơn vị hoặc ngày cấp (dd/MM/yyyy) |
+
+Các dòng còn lại (ngày hội nghị, ngày ký, người ký…) là chữ cố định trong mẫu, muốn đổi thì sửa trực tiếp trong Slides.
+
+**Cài đặt**
+1. Tải `mau-chung-nhan.pptx` lên Google Drive → chuột phải → *Mở bằng Google Trang trình bày* → *Tệp → Lưu dưới dạng Google Trang trình bày*.
+2. Mở file Slides vừa lưu, lấy ID trên thanh địa chỉ (đoạn giữa `/d/` và `/edit`).
+3. Apps Script → Cài đặt dự án → Thuộc tính tập lệnh: thêm `CERT_TEMPLATE_ID` = ID đó.
+4. Chạy hàm `testCertificate` (lần đầu cấp quyền Drive và Slides). Hàm tạo file `THU-giay-chung-nhan.pdf` trong Drive để bạn xem. Chạy lại `setup()` để tạo thư mục lưu PDF.
+5. Triển khai → Quản lý bản triển khai → Chỉnh sửa → Phiên bản mới.
+
+**Cách hoạt động**: lần đầu một người xem chứng nhận, hệ thống sao chép mẫu, thay chữ, xuất PDF (khoảng 3–6 giây), lưu vào thư mục Drive `Hội nghị Dược 43 – Chứng nhận PDF` rồi xóa bản sao. Những lần sau, trang web và email đều dùng lại file PDF đã lưu nên nhanh và không tạo lại. Dung lượng khoảng 0,3–1 MB mỗi người. Chưa đặt `CERT_TEMPLATE_ID` thì hệ thống dùng mẫu HTML dự phòng (A4 dọc).
+
 ## Vận hành ngày hội nghị
 
 - Bàn đón tiếp: mở `/scan` trên điện thoại/máy tính, đăng nhập một lần (hoặc cắm máy quét cầm tay, con trỏ luôn nằm sẵn trong ô nhập).
@@ -67,7 +88,7 @@ Deploy tay (không qua GitHub): `npm i && npx wrangler login && npx wrangler dep
 
 - **Chịu tải**: Apps Script ghi tuần tự bằng khoá nên mỗi thao tác ghi mất khoảng 0,3–1 giây. Dòng người vào cửa trải ra nhiều phút thì ổn. Nếu có hàng trăm người đăng ký/điểm danh trong cùng vài giây thì một số người có thể thấy "Hệ thống đang quá tải" và phải bấm lại. Nên mở đăng ký sớm, và khi điểm danh vẫn dùng đủ 3 cách để chia tải.
 - **Điểm danh bằng SĐT** chỉ xác minh người dùng biết số đã đăng ký. Mã QR chung xoay vòng giảm việc điểm danh hộ từ xa, nhưng không chặn được người ngồi trong phòng nhập số của người khác. Tên hiển thị ở luồng này được che bớt.
-- **PDF chứng nhận** do Apps Script chuyển từ HTML nên khổ **A4 dọc**, phông chữ hệ thống. Nếu cần khổ ngang hoặc mẫu thiết kế riêng thì thay bằng mẫu Google Slides, cần sửa `Certificate.gs`.
+- **Chứng nhận**: cần đặt `CERT_TEMPLATE_ID` để dùng mẫu Slides. Mẫu không có chữ ký hoặc con dấu dạng ảnh. Muốn có thì chèn ảnh chữ ký vào trong Slides.
 - **QR trong email** được tạo bằng dịch vụ `api.qrserver.com` (mã token đi qua bên thứ ba). Nếu không muốn, đổi `qrBlob_`/`qrUrl_` sang thư viện QR tự lưu trong dự án.
 - Nên thêm **Rate limiting rule** trong Cloudflare (Security → WAF) cho đường dẫn `/api` để chống spam đăng ký.
 - Dữ liệu cá nhân (họ tên, SĐT, email) lưu trong Google Sheet của tài khoản triển khai: không chia sẻ sheet công khai.

@@ -4,6 +4,7 @@
 <title>Giấy chứng nhận</title>
 <link rel="stylesheet" href="/assets/app.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head><body>
 <header class="hero">
   <div class="eyebrow">Giấy chứng nhận tham dự</div>
@@ -11,9 +12,10 @@
 </header>
 <main class="wrap">
   <div id="msg" class="card hidden"></div>
+  <p id="wait" class="muted center">Đang tạo giấy chứng nhận, vui lòng chờ vài giây…</p>
   <section id="box" class="hidden">
     <div class="card">
-      <div class="cert-frame" id="frame"><iframe id="cert" title="Giấy chứng nhận" sandbox=""></iframe></div>
+      <div class="cert-frame" id="frame"><iframe id="cert" title="Giấy chứng nhận" sandbox="" class="hidden"></iframe></div>
       <div id="err" class="alert err hidden" role="alert"></div>
       <button id="dl" class="btn">Tải giấy chứng nhận (PDF)</button>
       <p class="small muted center" id="note">Bản PDF cũng sẽ được gửi vào email của bạn trong thời gian sớm nhất.</p>
@@ -34,21 +36,56 @@
 
   function msg(html) { const m = $('#msg'); m.innerHTML = html; m.classList.remove('hidden'); }
 
+  let pdfBytes = null, pdfName = 'Giay-chung-nhan.pdf';
+
   function fit() {
-    const f = $('#frame'), s = Math.min(1, f.clientWidth / 794);
-    $('#cert').style.transform = 'scale(' + s + ')';
+    const f = $('#frame'), ifr = $('#cert');
+    if (ifr.classList.contains('hidden')) return;
+    const s = Math.min(1, f.clientWidth / 794);
+    ifr.style.transform = 'scale(' + s + ')';
     f.style.height = Math.ceil(1123 * s) + 'px';
   }
   addEventListener('resize', fit);
 
+  function b64ToBytes(b64) {
+    const bin = atob(b64), bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+  }
+  function saveBytes(bytes, filename) {
+    const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+    const a = document.createElement('a'); a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  }
+  async function renderPdf(bytes) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const doc = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
+    const page = await doc.getPage(1);
+    const frame = $('#frame');
+    const base = page.getViewport({ scale: 1 });
+    const vp = page.getViewport({ scale: (frame.clientWidth / base.width) * Math.max(1, devicePixelRatio || 1) });
+    const canvas = document.createElement('canvas');
+    canvas.width = vp.width; canvas.height = vp.height; canvas.style.cssText = 'width:100%;height:auto;display:block';
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+    frame.style.height = ''; frame.appendChild(canvas);
+  }
+
   (async () => {
-    if (!token) return msg('<h2>Liên kết không hợp lệ</h2>');
+    if (!token) { $('#wait').classList.add('hidden'); return msg('<h2>Liên kết không hợp lệ</h2>'); }
     try {
       const r = await call('certificate', { t: token });
       $('#title').textContent = 'Chúc mừng, ' + r.name + '!';
-      $('#cert').srcdoc = r.html;
-      $('#box').classList.remove('hidden'); fit();
+      $('#wait').classList.add('hidden'); $('#box').classList.remove('hidden');
+      if (r.mode === 'pdf') {
+        pdfBytes = b64ToBytes(r.pdf); pdfName = r.filename;
+        try { await renderPdf(pdfBytes); }
+        catch { $('#frame').innerHTML = '<p class="center muted" style="padding:24px">Không hiển thị được bản xem trước. Hãy bấm nút bên dưới để tải giấy chứng nhận (PDF).</p>'; }
+      } else {
+        const ifr = $('#cert'); ifr.classList.remove('hidden'); ifr.srcdoc = r.html; fit();
+      }
     } catch (e) {
+      $('#wait').classList.add('hidden');
       if (e.code === 'NO_SURVEY') return msg('<h2>Chưa có giấy chứng nhận</h2><p class="muted">Bạn cần hoàn thành khảo sát trước.</p><a class="btn" href="/survey?t=' + encodeURIComponent(token) + '">Làm khảo sát</a>');
       return msg('<h2>Không mở được giấy chứng nhận</h2><p class="muted">' + esc(e.message) + '</p>');
     }
@@ -61,14 +98,12 @@
   })();
 
   $('#dl').addEventListener('click', async () => {
-    hide($('#err')); const b = $('#dl'); b.disabled = true; b.textContent = 'Đang tạo PDF…';
+    hide($('#err'));
+    if (pdfBytes) return saveBytes(pdfBytes, pdfName);   // đã có sẵn PDF, tải ngay
+    const b = $('#dl'); b.disabled = true; b.textContent = 'Đang tạo PDF…';
     try {
       const r = await call('certificate_pdf', { t: token });
-      const bin = atob(r.pdf), bytes = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-      const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
-      const a = document.createElement('a'); a.href = url; a.download = r.filename; document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 30000);
+      saveBytes(b64ToBytes(r.pdf), r.filename);
     } catch (e) { showError($('#err'), e.message); }
     finally { b.disabled = false; b.textContent = 'Tải giấy chứng nhận (PDF)'; }
   });
