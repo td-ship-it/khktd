@@ -5,7 +5,7 @@
 <link rel="stylesheet" href="/assets/app.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head><body>
-<div class="banner-wrap" id="bannerWrap" hidden><img class="banner" id="banner" alt="Banner hội nghị"></div>
+<div class="banner-wrap" id="bannerWrap" hidden><img class="banner" id="banner" alt="Hội nghị Khoa học Kỹ thuật Dược lần thứ 43 – 80 năm Kiến tạo sức khỏe: Khoa học – Đổi mới – Tiên phong" width="1920" height="600"></div>
 <header class="hero">
   <div class="eyebrow">Đăng ký tham dự</div>
   <h1 data-ev="name">Hội nghị Khoa học kỹ thuật Dược lần thứ 43</h1>
@@ -47,7 +47,7 @@
   (function () {
     const img = $('#banner'), exts = ['jpg', 'png', 'webp'];
     let k = 0;
-    img.onload = () => { $('#bannerWrap').hidden = false; };
+    img.onload = () => { $('#bannerWrap').hidden = false; document.body.classList.add('has-banner'); };
     img.onerror = () => { if (++k < exts.length) img.src = '/assets/banner.' + exts[k]; };
     img.src = '/assets/banner.' + exts[0];
   })();
