@@ -36,7 +36,9 @@
   async function fillEvent(titleSuffix) {
     try {
       const cfg = await getConfig();
-      document.querySelectorAll('[data-ev]').forEach(el => { el.textContent = cfg.event[el.dataset.ev] || ''; });
+      const tidy = v => String(v || '').trim().replace(/^\[(.*)\]$/s, '$1').replace(/^(giờ bắt đầu|thời gian|địa điểm|địa chỉ|ngày diễn ra|ngày)\s*:\s*/i, '').trim();
+      document.querySelectorAll('[data-ev]').forEach(el => { el.textContent = tidy(cfg.event[el.dataset.ev]); });
+      document.querySelectorAll('[data-item]').forEach(it => { if (!tidy(cfg.event[it.dataset.item])) it.classList.add('hidden'); });
       document.title = (titleSuffix ? titleSuffix + ' · ' : '') + cfg.event.shortName;
       return cfg;
     } catch { return null; }
