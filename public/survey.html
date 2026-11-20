@@ -23,45 +23,21 @@
   const token = (qs.get('t') || '').trim();
   const kiosk = qs.get('kiosk') === '1' ? '&kiosk=1' : '';
   let questions = [];
-  const LABELS = ['Rất kém', 'Kém', 'Bình thường', 'Tốt', 'Rất tốt'];
 
   function msg(html) { const m = $('#msg'); m.innerHTML = html; m.classList.remove('hidden'); $('#f').classList.add('hidden'); }
-
-  function build(q) {
-    let body = '';
-    if (q.type === 'rating') {
-      body = '<div class="pills">' + [1, 2, 3, 4, 5].map(n =>
-        `<label class="pill"><input type="radio" name="${q.id}" value="${n}"><span>${n}</span></label>`).join('') +
-        '</div><div class="scale"><span>1 = ' + LABELS[0] + '</span><span>5 = ' + LABELS[4] + '</span></div>';
-    } else if (q.type === 'choice') {
-      body = '<div class="opts">' + q.options.map(o => `<label><input type="radio" name="${q.id}" value="${esc(o)}">${esc(o)}</label>`).join('') + '</div>';
-    } else if (q.type === 'multi') {
-      body = '<div class="opts">' + q.options.map(o => `<label><input type="checkbox" name="${q.id}" value="${esc(o)}">${esc(o)}</label>`).join('') + '</div>';
-    } else {
-      body = `<textarea name="${q.id}" maxlength="1000"></textarea>`;
-    }
-    return `<div class="q"><div class="t">${esc(q.label)}${q.required ? ' <span class="req">*</span>' : ''}</div>${body}</div>`;
-  }
-
-  function collect() {
-    const a = {};
-    questions.forEach(q => {
-      if (q.type === 'multi') a[q.id] = [...document.querySelectorAll(`[name="${q.id}"]:checked`)].map(i => i.value);
-      else if (q.type === 'text') a[q.id] = document.querySelector(`[name="${q.id}"]`).value;
-      else { const c = document.querySelector(`[name="${q.id}"]:checked`); a[q.id] = c ? c.value : ''; }
-    });
-    return a;
-  }
 
   (async () => {
     if (!token) return msg('<h2>Liên kết không hợp lệ</h2><p class="muted">Vui lòng mở liên kết trong email xác nhận đăng ký.</p>');
     try {
-      const [cfg, st] = await Promise.all([App.fillEvent('Khảo sát'), call('survey_state', { t: token })]);
+      const [, st] = await Promise.all([App.fillEvent('Khảo sát'), call('survey_state', { t: token })]);
       if (st.submitted) { location.replace('/certificate?t=' + encodeURIComponent(token) + kiosk); return; }
       if (!st.checkedIn) return msg('<h2>Bạn chưa điểm danh</h2><p class="muted">Vui lòng điểm danh tại hội nghị (đưa mã QR cá nhân cho nhân viên, hoặc quét QR chung tại hội trường) rồi mở lại trang này.</p>');
-      questions = (cfg && cfg.survey) || (await App.getConfig()).survey;
-      $('#hello').textContent = 'Xin chào ' + st.name + ', cảm ơn bạn đã tham dự. Vui lòng dành 1 phút để góp ý.';
-      $('#qs').innerHTML = questions.map(build).join('');
+      questions = st.questions || [];
+      const real = questions.filter(q => q.type !== 'section').length;
+      $('#hello').textContent = 'Xin chào ' + st.name + ', cảm ơn bạn đã tham dự. ' +
+        (real ? 'Vui lòng dành 1 phút để góp ý.' : 'Nhấn nút bên dưới để nhận giấy chứng nhận.');
+      $('#qs').innerHTML = questions.map(App.renderQuestion).join('');
+      if (!real) $('#go').textContent = 'Nhận giấy chứng nhận';
       $('#f').classList.remove('hidden');
     } catch (e) { msg('<h2>Không mở được khảo sát</h2><p class="muted">' + esc(e.message) + '</p>'); }
   })();
@@ -70,11 +46,11 @@
     ev.preventDefault(); hide($('#err'));
     const btn = $('#go'); btn.disabled = true; btn.textContent = 'Đang gửi…';
     try {
-      await call('survey_submit', { t: token, answers: collect() });
+      await call('survey_submit', { t: token, answers: App.collectAnswers(questions) });
       location.href = '/certificate?t=' + encodeURIComponent(token) + kiosk;
     } catch (e) {
       if (e.code === 'ALREADY') { location.href = '/certificate?t=' + encodeURIComponent(token) + kiosk; return; }
-      showError($('#err'), e.message); btn.disabled = false; btn.textContent = 'Gửi khảo sát & nhận giấy chứng nhận';
+      showError($('#err'), e.message); btn.disabled = false; btn.textContent = questions.some(q => q.type !== 'section') ? 'Gửi khảo sát & nhận giấy chứng nhận' : 'Nhận giấy chứng nhận';
     }
   });
 </script>

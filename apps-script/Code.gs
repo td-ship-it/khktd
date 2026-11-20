@@ -32,7 +32,7 @@ function json_(obj) {
 
 var ROUTES = {
   // công khai
-  config:          function () { return { event: publicEvent_(), survey: SURVEY.questions }; },
+  config:          function () { return { event: publicEvent_() }; },
   register:        function (r) { return register_(r); },
   checkin_status:  function () { return { open: checkinState_().open }; },
   checkin_phone:   function (r) { return checkinPhone_(r); },
@@ -56,6 +56,13 @@ var ROUTES = {
   admin_list:        function (r) { authUser_(r, ['admin']); return adminList_(); },
   admin_export:      function (r) { authUser_(r, ['admin']); return adminExport_(r); },
   admin_set_checkin: function (r) { return setCheckin_(r); },
+  survey_q_list:     function (r) { return surveyQList_(r); },
+  survey_q_save:     function (r) { return surveyQSave_(r); },
+  survey_q_delete:   function (r) { return surveyQDelete_(r); },
+  survey_q_move:     function (r) { return surveyQMove_(r); },
+  survey_q_bulk:     function (r) { return surveyQBulk_(r); },
+  survey_q_seed:     function (r) { return surveyQSeed_(r); },
+  survey_results:    function (r) { return surveyResults_(r); },
   user_list:         function (r) { return userList_(r); },
   user_save:         function (r) { return userSave_(r); },
   user_delete:       function (r) { return userDelete_(r); }

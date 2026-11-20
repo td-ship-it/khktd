@@ -89,7 +89,63 @@
     } catch {}
   }
 
-  window.App = { $, qs, call, getConfig, fillEvent, showError, hide, staffGate, logout, esc, beep, token: null, user: null };
+  /* Hiển thị / thu thập câu hỏi khảo sát (dùng chung cho trang khảo sát và bản xem trước trong quản trị). */
+  const TYPE_NAMES = {
+    rating: 'Chấm điểm 1–5', nps: 'Thang điểm 0–10', choice: 'Chọn một đáp án', dropdown: 'Danh sách thả xuống',
+    multi: 'Chọn nhiều đáp án', yesno: 'Có / Không', short: 'Trả lời ngắn', text: 'Trả lời dài', section: 'Tiêu đề / ghi chú'
+  };
+  function renderQuestion(q) {
+    const id = esc(q.id), opts = q.options || [];
+    if (q.type === 'section') {
+      return `<div class="q sec"><h3>${esc(q.label)}</h3>${q.desc ? `<div class="qd">${esc(q.desc)}</div>` : ''}</div>`;
+    }
+    const other = (kind) => q.other
+      ? `<label class="oth"><input type="${kind}" name="${id}" value="__other"><span>Khác:</span><input type="text" class="othtxt" maxlength="200" placeholder="Nhập nội dung…" aria-label="Nội dung khác"></label>` : '';
+    let body = '';
+    if (q.type === 'rating' || q.type === 'nps') {
+      const from = q.type === 'rating' ? 1 : 0, to = q.type === 'rating' ? 5 : 10;
+      const nums = []; for (let n = from; n <= to; n++) nums.push(n);
+      body = '<div class="pills">' + nums.map(n => `<label class="pill"><input type="radio" name="${id}" value="${n}"><span>${n}</span></label>`).join('') + '</div>' +
+        `<div class="scale"><span>${from} = ${esc(q.low || (q.type === 'rating' ? 'Rất kém' : 'Hoàn toàn không'))}</span><span>${to} = ${esc(q.high || (q.type === 'rating' ? 'Rất tốt' : 'Chắc chắn có'))}</span></div>`;
+    } else if (q.type === 'yesno') {
+      body = '<div class="pills">' + ['Có', 'Không'].map(v => `<label class="pill"><input type="radio" name="${id}" value="${v}"><span>${v}</span></label>`).join('') + '</div>';
+    } else if (q.type === 'choice') {
+      body = '<div class="opts">' + opts.map(o => `<label><input type="radio" name="${id}" value="${esc(o)}">${esc(o)}</label>`).join('') + other('radio') + '</div>';
+    } else if (q.type === 'multi') {
+      body = '<div class="opts">' + opts.map(o => `<label><input type="checkbox" name="${id}" value="${esc(o)}">${esc(o)}</label>`).join('') + other('checkbox') + '</div>';
+    } else if (q.type === 'dropdown') {
+      body = `<select name="${id}"><option value="">— Chọn —</option>` + opts.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('') + '</select>';
+    } else if (q.type === 'short') {
+      body = `<input type="text" name="${id}" maxlength="200">`;
+    } else {
+      body = `<textarea name="${id}" maxlength="1000"></textarea>`;
+    }
+    return `<div class="q"><div class="t">${esc(q.label)}${q.required ? ' <span class="req">*</span>' : ''}</div>${q.desc ? `<div class="qd">${esc(q.desc)}</div>` : ''}${body}</div>`;
+  }
+  function collectAnswers(questions, root) {
+    root = root || document;
+    const a = {}, all = id => [...root.querySelectorAll(`[name="${id}"]`)];
+    const otherTxt = el => { const t = el.closest('label').querySelector('.othtxt'); return t && t.value.trim() ? 'Khác: ' + t.value.trim() : ''; };
+    questions.forEach(q => {
+      if (q.type === 'section') return;
+      const els = all(q.id);
+      if (q.type === 'multi') {
+        a[q.id] = els.filter(e => e.checked).map(e => e.value === '__other' ? otherTxt(e) : e.value).filter(Boolean);
+      } else if (q.type === 'choice' || q.type === 'rating' || q.type === 'nps' || q.type === 'yesno') {
+        const c = els.find(e => e.checked);
+        a[q.id] = c ? (c.value === '__other' ? otherTxt(c) : c.value) : '';
+      } else a[q.id] = els[0] ? els[0].value : '';
+    });
+    return a;
+  }
+  // Gõ vào ô "Khác" thì tự chọn đáp án "Khác".
+  document.addEventListener('input', e => {
+    if (e.target.classList && e.target.classList.contains('othtxt')) {
+      const r = e.target.closest('label').querySelector('input:not(.othtxt)'); if (r) r.checked = true;
+    }
+  });
+
+  window.App = { $, qs, call, getConfig, fillEvent, showError, hide, staffGate, logout, esc, beep, renderQuestion, collectAnswers, TYPE_NAMES, token: null, user: null };
 
   // Chân trang chung cho mọi trang (trừ trang đặt data-nofoot trên <body>).
   document.addEventListener('DOMContentLoaded', () => {

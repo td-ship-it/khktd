@@ -12,6 +12,7 @@ const ACTIONS = new Set([
   'config', 'register', 'checkin_status', 'checkin_phone', 'checkin_token', 'survey_state', 'survey_submit',
   'certificate', 'certificate_pdf', 'verify',
   'login', 'whoami', 'admin_stats', 'admin_list', 'admin_export', 'admin_hallcode', 'admin_set_checkin',
+  'survey_q_list', 'survey_q_save', 'survey_q_delete', 'survey_q_move', 'survey_q_bulk', 'survey_q_seed', 'survey_results',
   'user_list', 'user_save', 'user_delete'
 ]);
 

@@ -17,7 +17,7 @@ function setup() {
   var defs = [
     { def: SHEETS.REG,  headers: SHEETS.REG.headers,  textCols: [3] },
     { def: SHEETS.CHK,  headers: SHEETS.CHK.headers,  textCols: [3] },
-    { def: SHEETS.SUR,  headers: surveyHeaders_(),    textCols: [3] },
+    { def: SHEETS.SUR,  headers: surveyBaseHeaders_(), textCols: [3] },
     { def: SHEETS.USER, headers: SHEETS.USER.headers, textCols: [1] },
     { def: SHEETS.MAIL, headers: SHEETS.MAIL.headers, textCols: [] }
   ];
@@ -33,6 +33,8 @@ function setup() {
     // Cột số điện thoại phải là văn bản để giữ số 0 đầu.
     d.textCols.forEach(function (c) { sh.getRange(1, c, sh.getMaxRows(), 1).setNumberFormat('@'); });
   });
+
+  questionSheet_(); // tạo sheet CauHoi + nạp bộ câu hỏi mẫu nếu chưa có
 
   var created = {};
   if (!props.getProperty('API_KEY')) { created.API_KEY = Utilities.getUuid().replace(/-/g, '') + randomString_(8); props.setProperty('API_KEY', created.API_KEY); }

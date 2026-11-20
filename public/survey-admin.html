@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quản lý khảo sát</title>
+<link rel="stylesheet" href="/assets/app.css">
+</head><body data-nofoot>
+<div id="gate" class="wrap"></div>
+<main id="app" class="wrap wide hidden">
+  <header class="topbar" style="padding:14px 0">
+    <div><div class="eyebrow">Quản trị · Khảo sát</div><h1>Quản lý câu hỏi khảo sát</h1></div>
+    <div class="inl"><a class="btn ghost sm" href="/admin">← Trang quản trị</a><button class="btn ghost sm" id="out" type="button">Đăng xuất</button></div>
+  </header>
+
+  <section class="card">
+    <h2>Danh sách câu hỏi <span class="muted small" id="cnt"></span></h2>
+    <p class="small muted" style="margin-top:0">Bật <b>Hiển thị</b> để câu hỏi xuất hiện ở trang khảo sát; tắt để ẩn (dữ liệu đã thu vẫn được giữ). Thay đổi có hiệu lực ngay với người làm khảo sát sau đó.</p>
+    <div class="inl">
+      <button class="btn ghost sm" id="allOn" type="button">Hiện tất cả</button>
+      <button class="btn ghost sm" id="allOff" type="button">Ẩn tất cả</button>
+      <button class="btn ghost sm" id="seed" type="button">Nạp thêm câu hỏi mẫu</button>
+    </div>
+    <div id="lmsg" class="alert err hidden"></div>
+    <div class="qlist" id="ql"><p class="muted">Đang tải…</p></div>
+    <p class="small muted" id="empty" hidden>Chưa có câu hỏi nào hiển thị: người dự sẽ nhận giấy chứng nhận ngay mà không phải làm khảo sát.</p>
+  </section>
+
+  <section class="card" id="formCard">
+    <h2 id="ft">Thêm câu hỏi</h2>
+    <form id="f" novalidate>
+      <div class="formgrid">
+        <div><label for="type">Loại câu hỏi</label><select id="type"></select></div>
+        <div style="grid-column:1/-1"><label for="label" id="labelL">Nội dung câu hỏi <span class="req" style="color:var(--err)">*</span></label>
+          <input id="label" type="text" maxlength="300" autocomplete="off" placeholder="vd: Bạn đánh giá thế nào về phần thảo luận?"></div>
+        <div style="grid-column:1/-1"><label for="desc">Mô tả / hướng dẫn <span class="muted small">(tuỳ chọn, hiện nhỏ dưới câu hỏi)</span></label>
+          <input id="desc" type="text" maxlength="500" autocomplete="off"></div>
+        <div id="optsBox" style="grid-column:1/-1" hidden><label for="opts">Các lựa chọn <span class="muted small">(mỗi dòng một lựa chọn, 2–20 dòng)</span></label>
+          <textarea id="opts" rows="5" placeholder="Rất hài lòng&#10;Hài lòng&#10;Chưa hài lòng"></textarea></div>
+        <div id="lowBox" hidden><label for="low">Nhãn đầu thang <span class="muted small">(tuỳ chọn)</span></label><input id="low" type="text" maxlength="40" placeholder="vd: Rất kém"></div>
+        <div id="highBox" hidden><label for="high">Nhãn cuối thang <span class="muted small">(tuỳ chọn)</span></label><input id="high" type="text" maxlength="40" placeholder="vd: Rất tốt"></div>
+      </div>
+      <div class="checks">
+        <label id="reqBox"><input id="req" type="checkbox"> Bắt buộc trả lời</label>
+        <label id="othBox" hidden><input id="oth" type="checkbox"> Cho phép đáp án “Khác” (tự nhập)</label>
+        <label><input id="show" type="checkbox" checked> Hiển thị ở trang khảo sát</label>
+      </div>
+      <div class="preview"><p class="pv">Xem trước</p><div id="pv"></div></div>
+      <div id="fe" class="alert err hidden"></div>
+      <div class="inl" style="margin-top:14px">
+        <button class="btn sm" id="save">Thêm câu hỏi</button>
+        <button class="btn ghost sm" id="cancel" type="button" hidden>Hủy sửa</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Kết quả khảo sát</h2>
+    <div class="inl"><button class="btn ghost sm" id="loadRes" type="button">Xem kết quả tổng hợp</button><span class="muted small" id="resInfo"></span></div>
+    <div id="res"></div>
+    <p class="small muted">Muốn tải toàn bộ câu trả lời từng người: về trang quản trị → “Xuất dữ liệu” → “Kết quả khảo sát”.</p>
+  </section>
+</main>
+<script src="/assets/app.js"></script>
+<script>
+  const { $, call, showError, hide, esc } = App;
+  const NO_OPTS = ['rating', 'nps', 'yesno', 'short', 'text', 'section'];
+  const HINT = {
+    rating: 'Chấm 1–5 (mặc định 1 = Rất kém, 5 = Rất tốt).', nps: 'Chấm 0–10, thường dùng hỏi mức sẵn lòng giới thiệu.',
+    choice: 'Người dự chọn đúng một đáp án.', dropdown: 'Như “chọn một”, nhưng gọn hơn khi có nhiều đáp án.',
+    multi: 'Người dự có thể chọn nhiều đáp án.', yesno: 'Hai nút Có / Không.', short: 'Một dòng chữ (tối đa 200 ký tự).',
+    text: 'Nhiều dòng (tối đa 1000 ký tự), hợp cho góp ý.', section: 'Chỉ là tiêu đề để chia nhóm câu hỏi, không có ô trả lời.'
+  };
+  let list = [], editing = null;
+
+  $('#type').innerHTML = Object.entries(App.TYPE_NAMES).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('');
+
+  const flash = (msg, ok) => { const m = $('#lmsg'); m.textContent = msg; m.classList.remove('hidden', ok ? 'err' : 'ok'); m.classList.add(ok ? 'ok' : 'err'); if (ok) setTimeout(() => m.classList.add('hidden'), 2500); };
+
+  function draft() {
+    return {
+      id: editing ? editing.id : '__new', type: $('#type').value, label: $('#label').value.trim() || 'Nội dung câu hỏi',
+      desc: $('#desc').value.trim(), required: $('#req').checked, other: $('#oth').checked, low: $('#low').value.trim(), high: $('#high').value.trim(),
+      show: $('#show').checked, options: $('#opts').value.split(/\r?\n/).map(s => s.trim()).filter(Boolean)
+    };
+  }
+  function syncForm() {
+    const t = $('#type').value;
+    $('#optsBox').hidden = NO_OPTS.includes(t);
+    $('#lowBox').hidden = $('#highBox').hidden = !(t === 'rating' || t === 'nps');
+    $('#othBox').hidden = !(t === 'choice' || t === 'multi');
+    $('#reqBox').hidden = t === 'section';
+    $('#labelL').firstChild.textContent = t === 'section' ? 'Nội dung tiêu đề ' : 'Nội dung câu hỏi ';
+    const d = draft(); if (NO_OPTS.includes(t) === false && d.options.length < 2) d.options = ['Lựa chọn 1', 'Lựa chọn 2'];
+    $('#pv').innerHTML = App.renderQuestion(d);
+    $('#pv').title = HINT[t];
+  }
+  ['type', 'label', 'desc', 'opts', 'low', 'high', 'req', 'oth', 'show'].forEach(id => $('#' + id).addEventListener('input', syncForm));
+
+  function resetForm() {
+    editing = null; $('#f').reset(); $('#ft').textContent = 'Thêm câu hỏi'; $('#save').textContent = 'Thêm câu hỏi'; $('#cancel').hidden = true; hide($('#fe')); syncForm();
+  }
+  function startEdit(q) {
+    editing = q; $('#type').value = q.type; $('#label').value = q.label; $('#desc').value = q.desc; $('#opts').value = q.options.join('\n');
+    $('#low').value = q.low; $('#high').value = q.high; $('#req').checked = q.required; $('#oth').checked = q.other; $('#show').checked = q.show;
+    $('#ft').textContent = 'Sửa câu hỏi'; $('#save').textContent = 'Lưu thay đổi'; $('#cancel').hidden = false; hide($('#fe')); syncForm();
+    $('#formCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  const payload = q => ({ id: q.id, type: q.type, label: q.label, desc: q.desc, options: q.options, required: q.required, other: q.other, low: q.low, high: q.high, show: q.show });
+
+  function render() {
+    const n = list.filter(q => q.show && q.type !== 'section').length;
+    $('#cnt').textContent = '(' + list.length + ' câu · ' + n + ' đang hiển thị)';
+    $('#empty').hidden = n > 0;
+    let k = 0;
+    $('#ql').innerHTML = list.length ? list.map((q, i) => {
+      const no = q.type === 'section' ? '§' : ++k;
+      return `<div class="qrow${q.show ? '' : ' off'}" data-id="${esc(q.id)}">
+        <div class="no">${no}</div>
+        <div><div class="lb">${esc(q.label)}</div>
+          <div class="mt"><span class="tag">${esc(App.TYPE_NAMES[q.type])}</span>${q.required ? '<span class="tag on">Bắt buộc</span>' : ''}${q.other ? '<span class="tag">Có “Khác”</span>' : ''}${q.options.length ? '<span class="tag">' + q.options.length + ' lựa chọn</span>' : ''}</div></div>
+        <div class="ac">
+          <label class="sw"><input type="checkbox" data-a="show" ${q.show ? 'checked' : ''}><i></i>Hiển thị</label>
+          <button class="btn ghost xs" data-a="up" ${i === 0 ? 'disabled' : ''} aria-label="Lên" type="button">↑</button>
+          <button class="btn ghost xs" data-a="down" ${i === list.length - 1 ? 'disabled' : ''} aria-label="Xuống" type="button">↓</button>
+          <button class="btn ghost xs" data-a="edit" type="button">Sửa</button>
+          <button class="btn danger xs" data-a="del" type="button">Xóa</button>
+        </div></div>`;
+    }).join('') : '<p class="muted">Chưa có câu hỏi. Hãy thêm ở form bên dưới hoặc nhấn “Nạp thêm câu hỏi mẫu”.</p>';
+  }
+  async function load() {
+    try { list = (await call('survey_q_list', { token: App.token })).questions; render(); }
+    catch (e) { $('#ql').innerHTML = ''; flash(e.message); }
+  }
+
+  async function act(fn) { hide($('#lmsg')); try { await fn(); await load(); } catch (e) { flash(e.message); await load(); } }
+
+  function setup() {
+    syncForm(); load();
+    $('#allOn').addEventListener('click', () => act(() => call('survey_q_bulk', { token: App.token, show: true })));
+    $('#allOff').addEventListener('click', () => { if (confirm('Ẩn tất cả câu hỏi? Người dự sẽ nhận chứng nhận mà không phải khảo sát.')) act(() => call('survey_q_bulk', { token: App.token, show: false })); });
+    $('#seed').addEventListener('click', () => act(async () => { const r = await call('survey_q_seed', { token: App.token }); flash(r.added ? 'Đã thêm ' + r.added + ' câu hỏi mẫu.' : 'Các câu hỏi mẫu đã có sẵn.', true); }));
+    $('#ql').addEventListener('click', ev => {
+      const b = ev.target.closest('[data-a]'); if (!b || b.type === 'checkbox') return;
+      const row = b.closest('.qrow'), q = list.find(x => x.id === row.dataset.id); if (!q) return;
+      if (b.dataset.a === 'edit') return startEdit(q);
+      if (b.dataset.a === 'up' || b.dataset.a === 'down') return act(() => call('survey_q_move', { token: App.token, id: q.id, dir: b.dataset.a }));
+      if (b.dataset.a === 'del') {
+        if (!confirm('Xóa câu hỏi này?\n\nCâu trả lời đã thu vẫn còn trong Google Sheet (sheet KhaoSat). Nếu chỉ muốn tạm không dùng, hãy tắt “Hiển thị”.')) return;
+        if (editing && editing.id === q.id) resetForm();
+        act(() => call('survey_q_delete', { token: App.token, id: q.id }));
+      }
+    });
+    $('#ql').addEventListener('change', ev => {
+      const b = ev.target.closest('[data-a="show"]'); if (!b) return;
+      const q = list.find(x => x.id === b.closest('.qrow').dataset.id); if (!q) return;
+      act(() => call('survey_q_save', { token: App.token, ...payload(q), show: b.checked }));
+    });
+    $('#cancel').addEventListener('click', resetForm);
+    $('#f').addEventListener('submit', async ev => {
+      ev.preventDefault(); hide($('#fe'));
+      const d = draft(); if (!$('#label').value.trim()) { showError($('#fe'), 'Vui lòng nhập nội dung.'); $('#label').focus(); return; }
+      const btn = $('#save'); btn.disabled = true;
+      try {
+        await call('survey_q_save', { token: App.token, ...payload(d), id: editing ? editing.id : undefined });
+        const was = !!editing; resetForm(); await load(); flash(was ? 'Đã lưu thay đổi.' : 'Đã thêm câu hỏi.', true);
+      } catch (e) { showError($('#fe'), e.message); }
+      finally { btn.disabled = false; }
+    });
+    $('#loadRes').addEventListener('click', async () => {
+      const b = $('#loadRes'); b.disabled = true; $('#resInfo').textContent = 'Đang tải…';
+      try {
+        const r = await call('survey_results', { token: App.token });
+        $('#resInfo').textContent = r.total + ' phiếu khảo sát';
+        $('#res').innerHTML = r.items.map(it => {
+          let body = '';
+          if (it.dist) {
+            const mx = Math.max(1, ...it.dist.map(x => x.n));
+            body = it.dist.map(x => `<div class="rl"><span>${esc(x.k)}</span><div class="bar"><i style="width:${Math.round(100 * x.n / mx)}%"></i></div><span>${x.n}${it.answered ? ' · ' + Math.round(100 * x.n / it.answered) + '%' : ''}</span></div>`).join('');
+          } else body = it.texts.length ? '<ul>' + it.texts.map(t => '<li>' + esc(t) + '</li>').join('') + '</ul>' : '<p class="small muted">Chưa có câu trả lời.</p>';
+          return `<div class="res"><div class="rt">${esc(it.label)}${it.show ? '' : ' <span class="tag">đang ẩn</span>'}</div>
+            <div class="small muted">${it.answered} lượt trả lời${it.avg != null ? ' · điểm trung bình <b>' + it.avg + '</b>' : ''}</div>${body}</div>`;
+        }).join('') || '<p class="muted">Chưa có câu hỏi.</p>';
+      } catch (e) { $('#resInfo').textContent = e.message; }
+      finally { b.disabled = false; }
+    });
+  }
+
+  App.staffGate(user => {
+    $('#out').addEventListener('click', App.logout);
+    if (user.role !== 'admin') {
+      $('#app').innerHTML = '<div class="card"><h2>Không có quyền</h2><p class="muted">Chỉ tài khoản Quản trị mới quản lý được khảo sát.</p><a class="btn ghost sm" href="/admin">← Về trang quản trị</a></div>';
+      return;
+    }
+    setup();
+  });
+</script>
+</body></html>
